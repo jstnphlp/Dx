@@ -1,4 +1,4 @@
-# Business application starter
+# Dx
 
 A production-minded starting point for small and medium business applications. It is a modular Next.js application with Supabase authentication, straightforward RBAC, optional organization scope, a complete Customers reference feature, private file uploads, auditing, tests, and Vercel-ready CI.
 
