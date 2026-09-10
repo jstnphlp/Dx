@@ -98,7 +98,10 @@ function rasterize(width: number, height: number, radius: number, options: Liqui
 }
 function toDataUrl(data: Uint8ClampedArray, width: number, height: number, canvas: HTMLCanvasElement) {
   canvas.width = width; canvas.height = height; const context = canvas.getContext("2d", { willReadFrequently: false }); if (!context) return "";
-  context.putImageData(new ImageData(data, width, height), 0, 0); return canvas.toDataURL();
+  const imageData = new ImageData(width, height);
+  imageData.data.set(data);
+  context.putImageData(imageData, 0, 0);
+  return canvas.toDataURL();
 }
 export class LiquidGlassEngine {
   private readonly element: HTMLElement; private readonly id: string; private options: LiquidGlassOptions; private readonly displacementCanvas: HTMLCanvasElement; private readonly highlightCanvas: HTMLCanvasElement; private readonly highlight: HTMLDivElement; private readonly resizeObserver: ResizeObserver; private filterElement: SVGFilterElement | null = null; private frame = 0;
@@ -114,7 +117,7 @@ export class LiquidGlassEngine {
     const rectangle = this.element.getBoundingClientRect(); if (rectangle.width < 4 || rectangle.height < 4) return; const radius = parseFloat(getComputedStyle(this.element).borderRadius) || 0; const maps = rasterize(rectangle.width, rectangle.height, radius, this.options);
     this.element.style.backgroundColor = this.options.tint; this.highlight.style.backgroundImage = `url(${toDataUrl(maps.highlight, maps.width, maps.height, this.highlightCanvas)})`; const fallback = `blur(${Math.max(this.options.blur, 6)}px) saturate(${this.options.saturation})`;
     if (supportsSvgBackdropFilter()) { this.buildFilter(maps); this.element.style.backdropFilter = `url(#${this.id})`; this.element.dataset.refracting = "true"; } else { this.element.style.backdropFilter = fallback; this.element.dataset.refracting = "false"; }
-    this.element.style.webkitBackdropFilter = fallback;
+    this.element.style.setProperty("-webkit-backdrop-filter", fallback);
   }
   private buildFilter(maps: RasterizedGlass) {
     const namespace = "http://www.w3.org/2000/svg", definitions = ensureSvgRoot().querySelector("defs"); if (!definitions) return;
