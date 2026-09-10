@@ -1,11 +1,12 @@
 "use client";
 
 import { ErrorState } from "@/components/shared/error-state";
+import { PageContainer } from "@/components/shared/page-container";
 
 export default function ErrorBoundary({ reset }: { reset: () => void }) {
   return (
-    <div className="mx-auto w-full max-w-7xl p-6 lg:p-10">
+    <PageContainer>
       <ErrorState onRetry={reset} />
-    </div>
+    </PageContainer>
   );
 }

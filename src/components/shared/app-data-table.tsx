@@ -17,13 +17,9 @@ import {
 import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/shared/empty-state";
+import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -83,10 +79,20 @@ export function AppDataTable<TData>({
   });
 
   return (
-    <Card className="overflow-hidden" role="region" aria-label="Data table">
-      {toolbar ? <CardHeader className="pb-5">{toolbar}</CardHeader> : null}
+    <LiquidGlass
+      kind="inspector"
+      renderKey={`${pageIndex}-${pageSize}-${totalRows}`}
+      className="overflow-hidden rounded-[1.25rem] border border-white/85 bg-background/25 shadow-[0_14px_38px_rgba(55,39,31,0.07)]"
+      role="region"
+      aria-label="Data table"
+    >
+      {toolbar ? (
+        <CardHeader className="border-b border-foreground/10 bg-background/62 px-4 py-4 sm:px-4 sm:pt-4">
+          {toolbar}
+        </CardHeader>
+      ) : null}
 
-      <CardContent className="px-0 pb-0 sm:px-0 sm:pb-0">
+      <CardContent className="bg-card/68 px-0 pb-0 sm:px-0 sm:pb-0">
         {data.length === 0 ? (
           <div className="px-6 py-8">
             <EmptyState title={emptyTitle} description={emptyDescription} />
@@ -148,7 +154,7 @@ export function AppDataTable<TData>({
         )}
       </CardContent>
 
-      <CardFooter className="flex-col gap-3 bg-muted/35 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:justify-between sm:px-4 sm:pb-3">
+      <CardFooter className="flex-col gap-3 border-t border-foreground/10 bg-background/62 px-4 py-3 font-mono text-[0.62rem] text-muted-foreground sm:flex-row sm:justify-between sm:px-4 sm:pb-3">
         <p>
           {totalRows === 0
             ? "0 records"
@@ -158,10 +164,12 @@ export function AppDataTable<TData>({
               )} of ${totalRows}`}
         </p>
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline">Rows</span>
+          <span className="hidden tracking-[0.05em] uppercase sm:inline">
+            Rows
+          </span>
           <Select
             aria-label="Rows per page"
-            className="h-8 w-18"
+            className="h-7 w-16 font-mono text-[0.62rem]"
             value={String(pageSize)}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
           >
@@ -173,19 +181,19 @@ export function AppDataTable<TData>({
           </Select>
           <Button
             variant="outline"
-            size="icon"
+            size="icon-sm"
             aria-label="Previous page"
             disabled={pageIndex <= 0}
             onClick={() => onPageChange(pageIndex - 1)}
           >
             <ChevronLeft />
           </Button>
-          <span className="min-w-20 text-center text-xs">
+          <span className="min-w-20 text-center">
             Page {pageCount === 0 ? 0 : pageIndex + 1} of {pageCount}
           </span>
           <Button
             variant="outline"
-            size="icon"
+            size="icon-sm"
             aria-label="Next page"
             disabled={pageIndex + 1 >= pageCount}
             onClick={() => onPageChange(pageIndex + 1)}
@@ -194,6 +202,6 @@ export function AppDataTable<TData>({
           </Button>
         </div>
       </CardFooter>
-    </Card>
+    </LiquidGlass>
   );
 }

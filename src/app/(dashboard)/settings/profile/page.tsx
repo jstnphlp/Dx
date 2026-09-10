@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { PageContainer } from "@/components/shared/page-container";
+import { WorkspaceToolbar } from "@/components/shared/workspace-toolbar";
 import {
   Card,
   CardContent,
@@ -19,40 +21,43 @@ export default async function ProfileSettingsPage() {
   const [user, files] = await Promise.all([requireCurrentUser(), listFiles()]);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 p-5 sm:p-7 lg:p-10">
-      <PageHeader
-        eyebrow="Settings"
-        title="Profile"
-        description="Manage your display name and personal workspace attachments."
-      />
+    <div className="relative min-h-svh pb-12">
+      <WorkspaceToolbar section="Settings" current="Profile" />
+      <PageContainer width="standard" className="pt-6 lg:pt-7">
+        <PageHeader
+          eyebrow="Personal settings"
+          title="Profile"
+          description="Manage your display name and personal workspace attachments."
+        />
 
-      <Card role="region" aria-labelledby="profile-details-title">
-        <CardHeader>
-          <CardTitle id="profile-details-title" className="text-base">
-            Personal details
-          </CardTitle>
-          <CardDescription>
-            Used in the application shell and audit records.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <ProfileForm user={user} />
-        </CardContent>
-      </Card>
+        <Card role="region" aria-labelledby="profile-details-title">
+          <CardHeader>
+            <CardTitle id="profile-details-title" className="text-base">
+              Personal details
+            </CardTitle>
+            <CardDescription>
+              Used in the application shell and audit records.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <ProfileForm user={user} />
+          </CardContent>
+        </Card>
 
-      <Card role="region" aria-labelledby="attachments-title">
-        <CardHeader>
-          <CardTitle id="attachments-title" className="text-base">
-            Attachments
-          </CardTitle>
-          <CardDescription>
-            Private files scoped to your account by Storage RLS.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <FileManager files={files} />
-        </CardContent>
-      </Card>
+        <Card role="region" aria-labelledby="attachments-title">
+          <CardHeader>
+            <CardTitle id="attachments-title" className="text-base">
+              Attachments
+            </CardTitle>
+            <CardDescription>
+              Private files scoped to your account by Storage RLS.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <FileManager files={files} />
+          </CardContent>
+        </Card>
+      </PageContainer>
     </div>
   );
 }

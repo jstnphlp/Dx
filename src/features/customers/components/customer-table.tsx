@@ -110,7 +110,7 @@ export function CustomerTable({
                 trigger={
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     aria-label={`Edit ${row.original.name}`}
                   >
                     <Pencil />
@@ -126,7 +126,7 @@ export function CustomerTable({
                 trigger={
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     aria-label={`Delete ${row.original.name}`}
                   >
                     <Trash2 />
@@ -175,7 +175,7 @@ export function CustomerTable({
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="Search customers"
-            className="pl-9"
+            className="h-8 bg-card pl-9"
             placeholder="Search by customer name"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -183,7 +183,7 @@ export function CustomerTable({
         </form>
         <Select
           aria-label="Filter by status"
-          className="sm:w-40"
+          className="h-8 bg-card sm:w-40"
           value={result.query.status}
           onChange={(event) =>
             updateQuery({ status: event.target.value, page: 1 })
@@ -197,7 +197,7 @@ export function CustomerTable({
         <PermissionGuard role={role} permission={permissions.customersWrite}>
           <CustomerFormDialog
             trigger={
-              <Button>
+              <Button size="sm">
                 <Plus /> Add customer
               </Button>
             }

@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   experimental: {
     serverActions: { bodySizeLimit: "4.5mb" },
+    // The TypeScript CLI output can be truncated before Next parses it under
+    // Node 24. Use the compiler API; `pnpm typecheck` still runs the CLI.
+    useTypeScriptCli: false,
   },
   async headers() {
     return [

@@ -14,7 +14,12 @@ function Table({ className, ...props }: ComponentProps<"table">) {
 }
 
 function TableHeader({ className, ...props }: ComponentProps<"thead">) {
-  return <thead className={cn("border-b", className)} {...props} />;
+  return (
+    <thead
+      className={cn("border-b border-foreground/10 bg-secondary/52", className)}
+      {...props}
+    />
+  );
 }
 
 function TableBody({ className, ...props }: ComponentProps<"tbody">) {
@@ -37,7 +42,7 @@ function TableHead({ className, ...props }: ComponentProps<"th">) {
   return (
     <th
       className={cn(
-        "h-11 px-4 text-left align-middle text-xs font-semibold tracking-wide text-muted-foreground uppercase",
+        "h-10 px-4 text-left align-middle font-mono text-[0.58rem] font-bold tracking-[0.08em] text-muted-foreground uppercase",
         className,
       )}
       {...props}

@@ -34,9 +34,9 @@ export function ConfirmationDialog({
     <AlertDialog.Root open={open} onOpenChange={setOpen}>
       <AlertDialog.Trigger render={trigger} />
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 z-40 min-h-dvh bg-black/35 backdrop-blur-[2px] transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <AlertDialog.Backdrop className="fixed inset-0 z-40 min-h-dvh bg-foreground/25 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <AlertDialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <AlertDialog.Popup className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl transition-[transform,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
+          <AlertDialog.Popup className="w-full max-w-md rounded-xl border bg-card p-6 shadow-[0_24px_70px_rgba(44,31,25,0.18)] transition-[transform,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
             <AlertDialog.Title className="text-lg font-semibold tracking-tight">
               {title}
             </AlertDialog.Title>

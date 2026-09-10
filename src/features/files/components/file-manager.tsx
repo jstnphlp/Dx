@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { EmptyState } from "@/components/shared/empty-state";
 import { FormMessage } from "@/components/shared/form-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,9 +147,11 @@ export function FileManager({ files }: { files: FileListItem[] }) {
           ))}
         </div>
       ) : (
-        <p className="rounded-lg bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
-          No files uploaded yet.
-        </p>
+        <EmptyState
+          icon={<FileText />}
+          title="No attachments yet"
+          description="Upload a file to keep it with your personal workspace details."
+        />
       )}
     </div>
   );

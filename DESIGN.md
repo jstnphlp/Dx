@@ -22,13 +22,13 @@ The interface should feel calm enough for daily operational use. Liquid Glass is
 
 Use the following hierarchy when deciding what a component should look like.
 
-| Layer | Purpose | Material | Examples |
-| --- | --- | --- | --- |
-| Canvas | Environmental depth | Editorial gradient scene | App background |
-| Content | Work users read/edit | Solid warm surfaces | Cards, tables, stages, forms |
-| Chrome | Navigation and controls above content | Liquid Glass | Sidebar, floating toolbar island |
-| Focus | Temporary contextual work | Hard Liquid Glass | Right inspector drawer |
-| Modal | Blocking task | Solid elevated surface | Create/edit dialogs |
+| Layer   | Purpose                               | Material                 | Examples                         |
+| ------- | ------------------------------------- | ------------------------ | -------------------------------- |
+| Canvas  | Environmental depth                   | Editorial gradient scene | App background                   |
+| Content | Work users read/edit                  | Solid warm surfaces      | Cards, tables, stages, forms     |
+| Chrome  | Navigation and controls above content | Liquid Glass             | Sidebar, floating toolbar island |
+| Focus   | Temporary contextual work             | Hard Liquid Glass        | Right inspector drawer           |
+| Modal   | Blocking task                         | Solid elevated surface   | Create/edit dialogs              |
 
 If a component does not clearly belong to Chrome or Focus, it should normally **not** use Liquid Glass.
 
@@ -354,6 +354,20 @@ Allowed patterns:
 
 Respect `prefers-reduced-motion`. Do not add looping background animation to normal business screens.
 
+### Gooey selection transitions
+
+Persistent navigation and compact selection controls may use `liquid-gooey` to make the active surface flow between related choices.
+
+- Use the shared Gooey navigation pattern for the sidebar active indicator. The route must change immediately; never delay navigation so an animation can finish.
+- Prefer the library's `move` effect for active navigation, tabs, and segmented selectors. Keep the tuning calm: low wobble, restrained stretch, and a short trailing bridge.
+- Use `morph` only when a compact control genuinely expands, collapses, merges, or separates. Do not apply it to normal page content.
+- Keep labels, icons, links, focus rings, ARIA, and hit targets in the crisp DOM content layer. The filtered silhouette is visual feedback only.
+- Use one moving liquid indicator per selection group instead of one effect per item.
+- Use warm semantic fills that work with the Prometheus canvas. Gooey motion must not introduce neon colors or become a second visual theme.
+- Do not use Gooey as a full-page wipe, on tables or forms, for repeated record cards, or for passive decoration.
+- Component-driven motion must collapse to an instant state change under `prefers-reduced-motion`. Preserve a clear static active state when motion is disabled or unsupported.
+- Similar transitions are appropriate for persistent sidebar selection, compact tab bars, segmented view switches, and sanctioned quick-action clusters when those controls share one spatial context.
+
 ## 21. Icons
 
 Use Lucide icons unless a feature already uses an approved shared animated icon. Normal interface icon size is 16 px. Icons support labels; they should not replace clear text for unfamiliar actions.
@@ -397,20 +411,20 @@ Business rules and authorization do not belong in visual components.
 
 ## 25. Component decision guide
 
-| Need | Use |
-| --- | --- |
-| Primary/secondary action | `Button` |
-| Record status | `Badge` or feature status chip |
-| Discrete record/object | `Card` or feature card |
-| Searchable business list | `AppDataTable` |
-| Standard page heading | `PageHeader` |
-| No-data view | `EmptyState` |
-| Blocking create/edit flow | `Dialog` |
-| Confirm destructive action | `ConfirmationDialog` |
-| Contextual read/review details | `InspectorDrawer` |
-| Global navigation | `AppShell` |
+| Need                                 | Use                                              |
+| ------------------------------------ | ------------------------------------------------ |
+| Primary/secondary action             | `Button`                                         |
+| Record status                        | `Badge` or feature status chip                   |
+| Discrete record/object               | `Card` or feature card                           |
+| Searchable business list             | `AppDataTable`                                   |
+| Standard page heading                | `PageHeader`                                     |
+| No-data view                         | `EmptyState`                                     |
+| Blocking create/edit flow            | `Dialog`                                         |
+| Confirm destructive action           | `ConfirmationDialog`                             |
+| Contextual read/review details       | `InspectorDrawer`                                |
+| Global navigation                    | `AppShell`                                       |
 | Floating navigation/control material | `LiquidGlass` through an approved shared pattern |
-| Repeated content surface | Solid section/card, **not** Liquid Glass |
+| Repeated content surface             | Solid section/card, **not** Liquid Glass         |
 
 ## 26. Adding a new feature
 

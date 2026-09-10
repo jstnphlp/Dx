@@ -1,9 +1,10 @@
 import { LoadingState } from "@/components/shared/loading-state";
+import { PageContainer } from "@/components/shared/page-container";
 
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-7xl p-6 lg:p-10">
+    <PageContainer>
       <LoadingState label="Loading workspace" />
-    </div>
+    </PageContainer>
   );
 }
