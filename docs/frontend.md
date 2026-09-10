@@ -1,6 +1,8 @@
 # Frontend
 
-The application shell uses calm neutral surfaces, one primary accent, compact readable tables, and minimal chrome. Product pages prioritize orientation, status, and action over marketing copy.
+The application shell uses calm warm neutral surfaces, one Prometheus orange accent, compact readable tables, and restrained Liquid Glass for navigation/floating UI only. Product pages prioritize orientation, status, and action over marketing copy.
+
+Read the root [`DESIGN.md`](../DESIGN.md) before changing visual patterns. It is the detailed source of truth for materials, Liquid Glass usage, component selection, page hierarchy, responsive behavior, and new-component decisions.
 
 - Prefer Server Components and keep Client Components at interaction boundaries.
 - Use `PageHeader`, shared loading/empty/error states, and `ConfirmationDialog` before creating variants.
@@ -9,6 +11,7 @@ The application shell uses calm neutral surfaces, one primary accent, compact re
 - Reuse `src/components/ui` primitives and CSS tokens; do not fork component patterns per feature.
 - Preserve semantic headings, keyboard access, visible focus, target size, contrast, responsive tables, and reduced-motion behavior.
 - Keep cards only where a bounded interactive object needs one. Prefer sections, dividers, and clear workspace hierarchy.
+- Keep repeated content surfaces solid. Liquid Glass is reserved for the shared navigation/control/inspector patterns documented in `DESIGN.md`.
 
 Do not add a global state library for local forms/tables. Use local state, URL state, and Server Component data first.
 

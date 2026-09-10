@@ -1,6 +1,7 @@
 # Application coding conventions
 
-- Read `docs/business-context.md` and the relevant `docs/features/<feature>.md` before client feature work. Use `docs/feature-spec.md` for new specifications; resolve access and ownership decisions first.
+- Read `docs/business-context.md`, root `DESIGN.md`, and the relevant `docs/features/<feature>.md` before client feature work. Use `docs/feature-spec.md` for new specifications; resolve access and ownership decisions first.
+- Treat `DESIGN.md` as the UI source of truth. Reuse shared primitives and the approved Liquid Glass hierarchy instead of creating feature-local visual systems.
 
 - Put product capabilities under `src/features/<feature>`; keep routes focused on routing, data loading, and composition.
 - Keep business and authorization logic out of React components.
