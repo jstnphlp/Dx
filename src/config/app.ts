@@ -6,5 +6,5 @@ export const appConfig = {
     mark: "P",
     label: "Prometheus Dx",
   },
-  supportEmail: "support@example.test",
+  "supportEmail": "support@dx.example"
 } as const;

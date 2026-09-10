@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "name": "Dx",
+  "slug": "dx",
+  "supportEmail": "support@dx.example",
+  "portBase": 60020,
+  "templateVersion": "1.0.0",
+  "initializedAt": "2026-09-10T15:54:48.893Z"
+}
