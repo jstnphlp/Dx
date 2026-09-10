@@ -62,7 +62,7 @@ Do not use orange as a large page background or on every interactive object.
 
 ## 4. Background scene
 
-The application scene is rendered by `.app-scene` in `src/app/globals.css` using `public/backgrounds/editorial-gradient.svg`.
+The application scene is rendered by `.app-scene` in `src/app/globals.css` using `public/backgrounds/editorial-gradient.webp`. The previous Spectrum Terracotta experiment is kept separately as `public/backgrounds/spectrum-terracotta.svg` and is not the default canvas.
 
 The scene exists for two reasons:
 
