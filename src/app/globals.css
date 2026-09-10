@@ -146,7 +146,7 @@
   z-index: 0;
   pointer-events: none;
   background-color: #f4efeb;
-  background-image: url("/backgrounds/editorial-gradient.svg");
+  background-image: url("/backgrounds/editorial-gradient.webp");
   background-size: cover;
   background-position: center;
   filter: saturate(0.92) contrast(0.97) brightness(1.02);
