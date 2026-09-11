@@ -1,7 +1,7 @@
 "use client";
 
 import { Select as BaseSelect } from "@base-ui/react/select";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -151,14 +151,17 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           </BaseSelect.Trigger>
           <BaseSelect.Portal>
             <BaseSelect.Positioner
+              side="bottom"
               sideOffset={5}
+              collisionAvoidance={{
+                side: "none",
+                align: "shift",
+                fallbackAxisSide: "none",
+              }}
               alignItemWithTrigger={false}
               className="z-60 outline-none"
             >
-              <BaseSelect.Popup className="min-w-[var(--anchor-width)] origin-[var(--transform-origin)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-[0_18px_44px_rgba(55,39,31,.14)] transition-[transform,opacity] duration-150 data-ending-style:scale-[.98] data-ending-style:opacity-0 data-starting-style:scale-[.98] data-starting-style:opacity-0">
-                <BaseSelect.ScrollUpArrow className="flex h-6 items-center justify-center bg-popover text-muted-foreground">
-                  <ChevronUp className="size-3" />
-                </BaseSelect.ScrollUpArrow>
+              <BaseSelect.Popup className="w-max max-w-[calc(100vw-2rem)] min-w-[var(--anchor-width)] origin-[var(--transform-origin)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-[0_18px_44px_rgba(55,39,31,.14)] transition-[transform,opacity] duration-150 data-ending-style:scale-[.98] data-ending-style:opacity-0 data-starting-style:scale-[.98] data-starting-style:opacity-0">
                 <BaseSelect.List className="max-h-[min(18rem,var(--available-height))] scroll-py-1 overflow-y-auto p-1 outline-none">
                   {options.map((option) => (
                     <BaseSelect.Item
@@ -170,15 +173,12 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                       <BaseSelect.ItemIndicator className="text-primary">
                         <Check className="size-3.5" />
                       </BaseSelect.ItemIndicator>
-                      <BaseSelect.ItemText className="truncate">
+                      <BaseSelect.ItemText className="whitespace-nowrap">
                         {option.label}
                       </BaseSelect.ItemText>
                     </BaseSelect.Item>
                   ))}
                 </BaseSelect.List>
-                <BaseSelect.ScrollDownArrow className="flex h-6 items-center justify-center bg-popover text-muted-foreground">
-                  <ChevronDown className="size-3" />
-                </BaseSelect.ScrollDownArrow>
               </BaseSelect.Popup>
             </BaseSelect.Positioner>
           </BaseSelect.Portal>

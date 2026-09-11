@@ -138,7 +138,7 @@ export function CommandCenter() {
                   setFilter(event.target.value as "all" | ActivityType)
                 }
                 aria-label="Filter company activity"
-                className="h-9 rounded-lg border border-input bg-background px-3 text-xs"
+                className="h-9 w-full shrink-0 bg-background px-3 text-xs sm:w-48"
               >
                 {filters.map(([value, label]) => (
                   <option key={value} value={value}>

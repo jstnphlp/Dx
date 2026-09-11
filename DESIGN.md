@@ -182,6 +182,10 @@ The project workspace intentionally places `Client Management System` directly o
 
 ## 8. Content surfaces
 
+### Scrollbars
+
+All page and nested-panel scrollbars use the shared warm neutral treatment defined in `src/app/globals.css`. The thumb shifts to Prometheus orange on hover, tracks stay low contrast, and browser scrollbar buttons are hidden. Do not add feature-local scrollbar colors or browser-default dark scrollbars.
+
 ### Sections
 
 Prefer normal sections and dividers before adding a card. The content layer should feel stable and materially different from the floating chrome.
