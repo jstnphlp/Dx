@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   loginSchema,
   profileSchema,
+  prometheusLoginSchema,
   resetPasswordSchema,
 } from "@/features/auth/schemas";
 
@@ -17,6 +18,22 @@ describe("authentication schemas", () => {
         password: "Starter123!",
       }).success,
     ).toBe(true);
+  });
+
+  it("validates the Prometheus login form payload", () => {
+    expect(
+      prometheusLoginSchema.safeParse({
+        email: "admin@example.test",
+        password: "Starter123!",
+        remember: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      prometheusLoginSchema.safeParse({
+        email: "admin@example.test",
+        password: "Starter123!",
+      }).success,
+    ).toBe(false);
   });
 
   it("requires matching reset passwords", () => {

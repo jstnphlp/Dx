@@ -5,6 +5,10 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Enter your password."),
 });
 
+export const prometheusLoginSchema = loginSchema.extend({
+  remember: z.boolean(),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.email("Enter a valid email address."),
 });
@@ -31,6 +35,7 @@ export const profileSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type PrometheusLoginInput = z.infer<typeof prometheusLoginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;

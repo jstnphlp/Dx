@@ -4,18 +4,19 @@
 
 - User and business problem: provide a structured workspace for viewing project stages, expected outcomes, ownership, dependencies, outputs, and lead review in one board.
 - Success criteria: an authenticated user can understand project progress, inspect an outcome, compare its output with the expected outcome, and use the migrated V5 interaction patterns without losing the starter application's shell/auth conventions.
-- Included behavior: project board UI, local create/edit project state, local stage/outcome creation, outcome inspector, local accept action, responsive horizontal board, and the approved Liquid Glass visual hierarchy.
+- Included behavior: grouped project portfolio and search, project board UI, local create/edit project state, local stage/outcome creation, outcome inspector, local accept action, responsive horizontal board, and the approved Liquid Glass visual hierarchy.
 - Excluded behavior: database persistence, real artifact/file opening, notifications, department/calendar/review modules, production authorization rules for project mutations, and audit events. These require product decisions before implementation.
 
 ## Workflow
 
-1. The user opens `/projects` from the authenticated sidebar.
-2. The project header communicates lead, assistant lead, state, and accepted-outcome count.
-3. The board shows stages horizontally; each stage contains outcomes.
-4. Selecting an outcome opens the right-hand inspector without replacing the board context.
-5. `Compare with outcome` exposes a lead-review section.
-6. `Accept outcome` updates the local demo state and closes the comparison section.
-7. `+ Stage`, `+ Outcome`, project settings, and new-project forms update local browser state only in this migration.
+1. The user opens `/projects` from the authenticated sidebar and sees projects grouped by state.
+2. The user searches the portfolio or opens a project workspace.
+3. The project header communicates lead, assistant lead, state, and accepted-outcome count.
+4. The board shows stages horizontally; each stage contains outcomes.
+5. Selecting an outcome opens the right-hand inspector without replacing the board context.
+6. `Compare with outcome` exposes a lead-review section.
+7. `Accept outcome` updates the local demo state and closes the comparison section.
+8. `+ Stage`, `+ Outcome`, project settings, and new-project forms update local browser state only in this migration.
 
 Failure/correction behavior in this migration is limited to required field checks in local forms. Persistence, concurrent edits, duplicate prevention, irreversible actions, and rollback behavior are intentionally unresolved because the source business context does not yet define them.
 
@@ -49,6 +50,7 @@ Before connecting these controls to Server Actions, define permissions in the fe
 ## Acceptance and verification
 
 - Given an authenticated user, when `/projects` loads, then the project board renders inside the existing authenticated application shell.
+- Given the project portfolio, then search filters cards and opening a card enters its workspace.
 - Given a normal content card or stage, then it uses a solid warm surface rather than Liquid Glass.
 - Given navigation, compact floating controls, or the inspector, then the approved Liquid Glass shared component may be used.
 - Given an outcome card is selected, then a right-hand inspector opens and the board remains visible underneath.

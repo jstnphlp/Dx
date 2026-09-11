@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { ComingSoonPage } from "@/components/shared/coming-soon-page";
+import { VisiworkOffice } from "@/features/visiwork/components/visiwork-office";
 
 export const metadata: Metadata = { title: "Visiwork" };
 
 export default function VisiworkPage() {
-  return <ComingSoonPage title="Visiwork" />;
+  return <VisiworkOffice />;
 }

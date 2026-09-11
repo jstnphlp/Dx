@@ -37,6 +37,7 @@ const workspaceNavigation: ReadonlyArray<NavigationItem> = [
   { label: "Visiwork", href: "/visiwork", icon: PanelsTopLeft },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Schedule", href: "/schedule", icon: CalendarDays },
+  { label: "Team", href: "/team", icon: UsersRound },
   {
     label: "Reports & Analytics",
     href: "/reports",

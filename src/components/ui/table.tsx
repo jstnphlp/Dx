@@ -16,7 +16,7 @@ function Table({ className, ...props }: ComponentProps<"table">) {
 function TableHeader({ className, ...props }: ComponentProps<"thead">) {
   return (
     <thead
-      className={cn("border-b border-foreground/10 bg-secondary/52", className)}
+      className={cn("border-b border-border/80 bg-muted", className)}
       {...props}
     />
   );

@@ -76,14 +76,14 @@ describe("AppShell", () => {
     const indicator = container.querySelector<HTMLElement>(
       ".navigation-liquid .glass-capsule",
     );
-    expect(indicator).toHaveStyle({ transform: "translateY(240px)" });
+    expect(indicator).toHaveStyle({ transform: "translateY(284px)" });
 
     fireEvent.click(
       screen.getAllByRole("link", { name: "Profile settings" })[0],
     );
-    expect(indicator).toHaveStyle({ transform: "translateY(328px)" });
+    expect(indicator).toHaveStyle({ transform: "translateY(372px)" });
 
     fireEvent.click(screen.getAllByRole("link", { name: "Customers" })[0]);
-    expect(indicator).toHaveStyle({ transform: "translateY(240px)" });
+    expect(indicator).toHaveStyle({ transform: "translateY(284px)" });
   });
 });

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "dx-prometheus-login-next/**",
+    "dx-prometheus-login-mobbin-next/**",
   ]),
 ]);
 

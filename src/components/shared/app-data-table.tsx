@@ -80,12 +80,12 @@ export function AppDataTable<TData>({
   return (
     <section className="ledger-surface" role="region" aria-label="Data table">
       {toolbar ? (
-        <CardHeader className="border-b border-foreground/10 px-4 py-4 sm:px-4 sm:pt-4">
+        <CardHeader className="border-b border-border/80 bg-muted px-4 py-4 sm:px-4 sm:pt-4">
           {toolbar}
         </CardHeader>
       ) : null}
 
-      <CardContent className="px-0 pb-0 sm:px-0 sm:pb-0">
+      <CardContent className="bg-secondary px-0 pb-0 sm:px-0 sm:pb-0">
         {data.length === 0 ? (
           <div className="px-6 py-8">
             <EmptyState title={emptyTitle} description={emptyDescription} />
@@ -129,7 +129,7 @@ export function AppDataTable<TData>({
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody>
+            <TableBody className="bg-secondary">
               {table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
@@ -147,7 +147,7 @@ export function AppDataTable<TData>({
         )}
       </CardContent>
 
-      <CardFooter className="flex-col gap-3 border-t border-foreground/10 px-4 py-3 font-mono text-[0.62rem] text-muted-foreground sm:flex-row sm:justify-between sm:px-4 sm:pb-3">
+      <CardFooter className="flex-col gap-3 border-t border-border/80 bg-muted/55 px-4 py-3 font-mono text-[0.62rem] text-muted-foreground sm:flex-row sm:justify-between sm:px-4 sm:pb-3">
         <p>
           {totalRows === 0
             ? "0 records"

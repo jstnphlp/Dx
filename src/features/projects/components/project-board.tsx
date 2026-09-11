@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  ArrowLeft,
   Check,
   ChevronRight,
   CircleDot,
   FileText,
   Plus,
+  Search,
   Settings2,
   X,
 } from "lucide-react";
@@ -28,6 +30,12 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  departments,
+  projects as projectCatalog,
+  type DepartmentId,
+  type ProjectDemo,
+} from "@/features/operations/demo-data";
 
 import { demoProject, demoStages } from "../demo-data";
 import type {
@@ -52,6 +60,11 @@ const departmentStyles: Record<string, string> = {
 };
 
 type DialogName = "project" | "settings" | "outcome" | null;
+type CreatedProject = ProjectSummary & {
+  initialStage: string;
+  departments: DepartmentId[];
+  portfolioStatus: ProjectDemo["status"];
+};
 
 function recalculateStage(stage: ProjectStage): ProjectStage {
   if (!stage.outcomes.length) return { ...stage, progress: 0 };
@@ -95,19 +108,25 @@ function ProjectDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (project: ProjectSummary) => void;
+  onSubmit: (project: CreatedProject) => void;
 }) {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const name = String(data.get("name") ?? "").trim();
     if (!name) return;
+    const status = String(data.get("status") ?? "Planning");
     onSubmit({
       name,
       description: String(data.get("description") ?? "").trim(),
-      lead: String(data.get("lead") ?? "Rex Jumawid"),
-      assistant: String(data.get("assistant") ?? "None"),
-      state: "Active",
+      lead: "Rex Jumawid",
+      assistant: "Ana Mendoza",
+      state: status === "Done" ? "Completed" : "Active",
+      initialStage:
+        String(data.get("initialStage") ?? "Project setup").trim() ||
+        "Project setup",
+      departments: data.getAll("departments") as DepartmentId[],
+      portfolioStatus: status as ProjectDemo["status"],
     });
     onOpenChange(false);
   }
@@ -121,8 +140,8 @@ function ProjectDialog({
             </p>
             <DialogTitle>New project details</DialogTitle>
             <DialogDescription>
-              Create a project shell. Persistence will be wired when the
-              projects data model is approved.
+              Add a local project to the company portfolio and define its
+              starting ownership.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -136,23 +155,38 @@ function ProjectDialog({
               />
             </FormField>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Project lead">
-                <Select name="lead" defaultValue="Rex Jumawid">
-                  <option>Rex Jumawid</option>
-                  <option>Justin Cruz</option>
-                  <option>Bea Santos</option>
-                  <option>Marco Reyes</option>
+              <FormField label="Status">
+                <Select name="status" defaultValue="Planning">
+                  <option>Planning</option>
+                  <option>In Progress</option>
+                  <option>Done</option>
                 </Select>
               </FormField>
-              <FormField label="Assistant lead">
-                <Select name="assistant" defaultValue="Ana Mendoza">
-                  <option>None</option>
-                  <option>Ana Mendoza</option>
-                  <option>Nico Ramos</option>
-                  <option>Carlo Lim</option>
-                </Select>
+              <FormField label="Initial stage">
+                <Input name="initialStage" defaultValue="Project setup" />
               </FormField>
             </div>
+            <FormField label="Departments involved">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(Object.keys(departments) as DepartmentId[]).map(
+                  (departmentId, index) => (
+                    <label
+                      key={departmentId}
+                      className="flex min-h-10 items-center gap-2.5 rounded-lg border border-border bg-muted px-3 text-xs text-foreground/75"
+                    >
+                      <input
+                        type="checkbox"
+                        name="departments"
+                        value={departmentId}
+                        defaultChecked={index === 0}
+                        className="accent-primary"
+                      />
+                      {departments[departmentId].name}
+                    </label>
+                  ),
+                )}
+              </div>
+            </FormField>
           </div>
           <DialogFooter>
             <Button
@@ -531,7 +565,238 @@ function InspectorSection({
   );
 }
 
+function ProjectLanding({
+  projects,
+  onOpen,
+  onCreate,
+}: {
+  projects: ProjectDemo[];
+  onOpen: (project: ProjectDemo) => void;
+  onCreate: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<ProjectDemo["status"]>>(
+    new Set(),
+  );
+  const filtered = projects.filter((project) =>
+    `${project.title} ${project.description} ${project.status} ${project.departments.map((id) => departments[id].name).join(" ")}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  const groups = ["Planning", "In Progress", "Done"] as const;
+
+  function toggleGroup(group: ProjectDemo["status"]) {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  }
+
+  return (
+    <div className="relative min-h-svh pb-12">
+      <WorkspaceToolbar section="Workspace" current="Projects" />
+      <div className="px-5 pt-5 sm:px-7 lg:px-8">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex w-full max-w-[26rem] items-center gap-2 rounded-xl border border-border/80 bg-muted px-3 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/15">
+            <Search className="size-4 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search projects…"
+              aria-label="Search projects"
+              className="h-10 min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <Button onClick={onCreate}>
+            <Plus /> Add project
+          </Button>
+        </div>
+
+        <div className="space-y-1.5">
+          {groups.map((group) => {
+            const items = filtered.filter(
+              (project) => project.status === group,
+            );
+            const isCollapsed = collapsed.has(group);
+            return (
+              <section key={group} aria-labelledby={`project-group-${group}`}>
+                <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleGroup(group)}
+                  className="flex min-h-11 w-full items-center gap-2.5 rounded-xl bg-secondary px-3.5 text-left transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <ChevronRight
+                    className={cn(
+                      "size-3 text-foreground/70 transition-transform",
+                      !isCollapsed && "rotate-90",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "relative size-4 rounded-full",
+                      group === "Planning" &&
+                        "border-2 border-muted-foreground/45",
+                      group === "In Progress" &&
+                        "border-[4px] border-primary border-r-border border-b-border",
+                      group === "Done" &&
+                        "grid place-items-center bg-chart-4 text-[0.55rem] text-white after:content-['✓']",
+                    )}
+                  />
+                  <h2
+                    id={`project-group-${group}`}
+                    className="text-xs font-semibold"
+                  >
+                    {group}
+                  </h2>
+                  <span className="font-mono text-[0.6rem] text-muted-foreground">
+                    {items.length}
+                  </span>
+                </button>
+
+                {!isCollapsed ? (
+                  <div className="pt-2 pr-1 pb-1 pl-7">
+                    {items.length ? (
+                      <div className="flex snap-x gap-3 overflow-x-auto pb-2">
+                        {items.map((project) => (
+                          <ProjectPortfolioCard
+                            key={project.id}
+                            project={project}
+                            onOpen={() => onOpen(project)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="grid min-h-20 place-items-center rounded-xl border border-dashed border-border bg-secondary/65 px-4 text-center text-xs text-muted-foreground">
+                        No {group.toLowerCase()} projects yet.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectPortfolioCard({
+  project,
+  onOpen,
+}: {
+  project: ProjectDemo;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="relative flex min-h-[15rem] w-[21.25rem] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border/80 bg-card p-3.5 shadow-[0_5px_16px_rgba(55,39,31,.03)] transition hover:-translate-y-0.5 hover:border-input hover:shadow-[0_10px_25px_rgba(55,39,31,.055)]">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 left-0 bg-primary/5"
+        style={{ width: `${project.progress}%` }}
+      />
+      <div className="relative flex items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-[0.52rem] font-bold tracking-[.1em] text-muted-foreground uppercase">
+            {project.id === "cms" ? "Primary workspace" : "Company project"}
+          </p>
+          <h3 className="mt-1.5 text-sm font-semibold tracking-tight">
+            {project.title}
+          </h3>
+        </div>
+        <span className="rounded-full border border-border bg-muted px-2 py-1 font-mono text-[0.52rem] font-bold text-muted-foreground uppercase">
+          {project.status}
+        </span>
+      </div>
+      <p className="relative mt-2.5 line-clamp-2 min-h-10 text-[0.68rem] leading-5 text-muted-foreground">
+        {project.description}
+      </p>
+
+      <div className="relative mt-3 rounded-xl border border-border/75 bg-muted/80 p-3">
+        <div className="flex items-center justify-between font-mono text-[0.54rem] font-bold uppercase">
+          <span className="text-muted-foreground">
+            Overall project progress
+          </span>
+          <strong className="text-primary-strong">{project.progress}%</strong>
+        </div>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${project.progress}%` }}
+          />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-border/70 bg-secondary px-2.5 py-2">
+            <p className="font-mono text-[0.48rem] font-bold text-muted-foreground uppercase">
+              Open outcomes
+            </p>
+            <strong className="mt-1 block text-[0.65rem]">
+              {project.openOutcomes} / {project.totalOutcomes} outcomes
+            </strong>
+          </div>
+          <div className="rounded-lg border border-border/70 bg-secondary px-2.5 py-2">
+            <p className="font-mono text-[0.48rem] font-bold text-muted-foreground uppercase">
+              Active stages
+            </p>
+            <strong className="mt-1 block text-[0.65rem]">
+              {project.stages.length} stages
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative mt-2.5 flex flex-wrap gap-1">
+        {project.departments.map((id) => (
+          <span
+            key={id}
+            className="rounded-full border border-border bg-muted px-2 py-1 font-mono text-[0.5rem] text-muted-foreground"
+          >
+            {departments[id].short}
+          </span>
+        ))}
+      </div>
+      <div className="relative mt-2 flex min-h-5 flex-wrap gap-1">
+        {project.workers.length ? (
+          project.workers.map((worker) => (
+            <span
+              key={worker}
+              className="inline-flex items-center gap-1 rounded-full bg-chart-4/10 px-2 py-1 font-mono text-[0.5rem] text-chart-4"
+            >
+              <i className="size-1 rounded-full bg-chart-4" /> {worker}
+            </span>
+          ))
+        ) : (
+          <span className="font-mono text-[0.52rem] text-muted-foreground">
+            No one currently working on this project
+          </span>
+        )}
+      </div>
+      <p className="relative mt-2 truncate text-[0.58rem] text-muted-foreground">
+        <strong className="text-foreground/65">Current:</strong>{" "}
+        {project.stages.slice(0, 2).join(" · ") || "No open stage work"}
+      </p>
+      <div className="relative mt-auto flex items-center justify-between border-t border-border/70 pt-2.5">
+        <span className="text-[0.56rem] text-muted-foreground">
+          {project.departments.length} departments involved
+        </span>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-[0.65rem] font-semibold text-primary hover:text-primary-strong"
+        >
+          Open workspace →
+        </button>
+      </div>
+    </article>
+  );
+}
+
 export function ProjectBoard() {
+  const [showLanding, setShowLanding] = useState(true);
+  const [createdProjects, setCreatedProjects] = useState<ProjectDemo[]>([]);
   const [project, setProject] = useState<ProjectSummary>(demoProject);
   const [stages, setStages] = useState<ProjectStage[]>(demoStages);
   const [dialog, setDialog] = useState<DialogName>(null);
@@ -598,6 +863,90 @@ export function ProjectBoard() {
     setReviewVisible(false);
   }
 
+  function openCatalogProject(catalogProject: ProjectDemo) {
+    setProject({
+      name: catalogProject.title,
+      description: catalogProject.description,
+      lead:
+        catalogProject.id === "customers" ? "Rex Jumawid" : demoProject.lead,
+      assistant: demoProject.assistant,
+      state: catalogProject.status === "Done" ? "Completed" : "Active",
+    });
+    setStages(
+      catalogProject.id === "cms"
+        ? demoStages
+        : catalogProject.stages.map((title, index) => ({
+            id: `${catalogProject.id}-stage-${index}`,
+            number: String(index + 1).padStart(2, "0"),
+            title,
+            progress: catalogProject.progress,
+            outcomes: [
+              {
+                id: `${catalogProject.id}-outcome-${index}`,
+                title:
+                  index === 0
+                    ? `${title} outcome`
+                    : `Complete ${title.toLowerCase()}`,
+                description: `Deliver and verify the expected result for ${title.toLowerCase()}.`,
+                state:
+                  catalogProject.status === "Done"
+                    ? "Accepted"
+                    : index === 0
+                      ? "In progress"
+                      : "Planned",
+                department:
+                  departments[
+                    catalogProject.departments[
+                      index % catalogProject.departments.length
+                    ]!
+                  ].short,
+                member:
+                  catalogProject.workers[
+                    index % Math.max(catalogProject.workers.length, 1)
+                  ] ?? "Unassigned",
+              },
+            ],
+          })),
+    );
+    setShowLanding(false);
+  }
+
+  if (showLanding) {
+    return (
+      <>
+        <ProjectLanding
+          projects={[...projectCatalog, ...createdProjects]}
+          onOpen={openCatalogProject}
+          onCreate={() => setDialog("project")}
+        />
+        <ProjectDialog
+          open={dialog === "project"}
+          onOpenChange={(open) => setDialog(open ? "project" : null)}
+          onSubmit={(createdProject) => {
+            const selectedDepartments = createdProject.departments.length
+              ? createdProject.departments
+              : (["rd"] as DepartmentId[]);
+            setCreatedProjects((current) => [
+              ...current,
+              {
+                id: `project-${Date.now()}`,
+                title: createdProject.name,
+                description: createdProject.description,
+                status: createdProject.portfolioStatus,
+                progress: createdProject.state === "Completed" ? 100 : 0,
+                openOutcomes: createdProject.state === "Completed" ? 0 : 1,
+                totalOutcomes: 1,
+                stages: [createdProject.initialStage],
+                departments: selectedDepartments,
+                workers: [],
+              },
+            ]);
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="relative min-h-svh pb-12">
       <WorkspaceToolbar
@@ -605,6 +954,14 @@ export function ProjectBoard() {
         current={project.name}
         actions={
           <>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="rounded-xl bg-transparent text-foreground/80 hover:bg-card/30"
+              onClick={() => setShowLanding(true)}
+            >
+              <ArrowLeft /> All projects
+            </Button>
             <Button
               variant="ghost"
               size="lg"
@@ -756,7 +1113,15 @@ export function ProjectBoard() {
       <ProjectDialog
         open={dialog === "project"}
         onOpenChange={(open) => setDialog(open ? "project" : null)}
-        onSubmit={setProject}
+        onSubmit={(createdProject) =>
+          setProject({
+            name: createdProject.name,
+            description: createdProject.description,
+            lead: createdProject.lead,
+            assistant: createdProject.assistant,
+            state: createdProject.state,
+          })
+        }
       />
       <SettingsDialog
         open={dialog === "settings"}
