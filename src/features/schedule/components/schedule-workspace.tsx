@@ -7,9 +7,9 @@ import {
   Settings2,
   UsersRound,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState, type FormEvent } from "react";
 
-import { LiquidGlass } from "@/components/shared/liquid-glass";
+import { InspectorDrawer } from "@/components/shared/inspector-drawer";
 import { PageContainer } from "@/components/shared/page-container";
 import { PageHeader } from "@/components/shared/page-header";
 import { WorkspaceToolbar } from "@/components/shared/workspace-toolbar";
@@ -25,12 +25,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
+import { departments } from "@/features/operations/demo-data";
 import {
-  departments,
-  members,
-  scheduleBlocks,
+  sessionHours,
+  sessionIsInWeek,
+  useOperationalDemo,
   type DepartmentId,
-} from "@/features/operations/demo-data";
+  type ScheduleBlock,
+} from "@/features/operations/store";
 import { cn } from "@/lib/utils";
 
 const days = [
@@ -42,209 +45,276 @@ const days = [
   "Saturday",
   "Sunday",
 ];
-const dates = [
-  "Sep 7",
-  "Sep 8",
-  "Sep 9",
-  "Sep 10",
-  "Sep 11",
-  "Sep 12",
-  "Sep 13",
-];
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 
-function formatHour(hour: number) {
-  const value = hour % 24;
-  if (value === 0) return "12 AM";
-  if (value === 12) return "12 PM";
-  return `${value > 12 ? value - 12 : value} ${value >= 12 ? "PM" : "AM"}`;
-}
-
 export function ScheduleWorkspace() {
+  const operations = useOperationalDemo();
   const [mode, setMode] = useState<"team" | "shifts">("team");
   const [department, setDepartment] = useState<DepartmentId | "all">("all");
-  const [person, setPerson] = useState("Nico Ramos");
+  const [selectedMembers, setSelectedMembers] = useState(() =>
+    operations.state.members.map((member) => member.id),
+  );
+  const [personId, setPersonId] = useState(operations.currentMember.id);
+  const [week, setWeek] = useState(0);
   const [configOpen, setConfigOpen] = useState(false);
-  const [timedIn, setTimedIn] = useState(false);
-  const [week, setWeek] = useState(1);
-
-  const visibleBlocks = useMemo(
-    () =>
-      scheduleBlocks.filter(
-        (block) => department === "all" || block.department === department,
-      ),
-    [department],
+  const [configuring, setConfiguring] = useState(false);
+  const [drawerDay, setDrawerDay] = useState<number | null>(null);
+  const person =
+    operations.state.members.find((member) => member.id === personId) ??
+    operations.currentMember;
+  const blocks = operations.state.schedule.filter((block) =>
+    department === "all"
+      ? selectedMembers.includes(block.memberId)
+      : selectedMembers.includes(block.memberId) &&
+        operations.state.members.find((member) => member.id === block.memberId)
+          ?.department === department,
   );
-  const personBlocks = scheduleBlocks.filter(
-    (block) => block.person === person,
+  const personBlocks = effectiveBlocks(
+    operations.state.schedule,
+    operations.state.overrides,
+    personId,
+    week,
   );
-  const scheduledHours = personBlocks.reduce(
-    (sum, block) => sum + block.duration,
+  const planned = personBlocks.reduce(
+    (sum, block) => sum + block.end - block.start,
     0,
   );
+  const worked = operations.state.sessions
+    .filter(
+      (session) =>
+        session.memberId === personId && sessionIsInWeek(session, week),
+    )
+    .reduce((sum, session) => sum + sessionHours(session), 0);
 
   return (
     <div className="relative min-h-svh pb-20">
       <WorkspaceToolbar section="Workspace" current="Schedule" />
-      <PageContainer className="pt-5 lg:pt-6" width="wide">
+      <PageContainer className="pt-5 lg:pt-6">
         <PageHeader
-          eyebrow="Planning and attendance"
-          title={mode === "team" ? "Team Schedule" : "Shifts"}
-          description={
-            mode === "team"
-              ? "A merged view of planned commitment across the whole team."
-              : "Compare planned commitment with recorded work sessions for each teammate."
-          }
+          eyebrow="Company availability"
+          title="Schedule"
+          description="Chosen startup duty hours in one merged weekly calendar."
           action={
-            <Button onClick={() => setConfigOpen(true)}>
-              <Settings2 /> Configure my schedule
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <div className="flex rounded-lg bg-secondary p-1">
+                <Button
+                  size="sm"
+                  variant={mode === "team" ? "secondary" : "ghost"}
+                  onClick={() => setMode("team")}
+                >
+                  <UsersRound /> Team Schedule
+                </Button>
+                <Button
+                  size="sm"
+                  variant={mode === "shifts" ? "secondary" : "ghost"}
+                  onClick={() => setMode("shifts")}
+                >
+                  <Clock3 /> Shifts
+                </Button>
+              </div>
+              <Button onClick={() => setConfigOpen(true)}>
+                <Settings2 /> Configure my schedule
+              </Button>
+            </div>
           }
         />
-
-        <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-secondary p-3 shadow-[0_4px_15px_rgba(55,39,31,.025)] sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex rounded-lg bg-muted p-1">
-            <Button
-              size="sm"
-              variant={mode === "team" ? "secondary" : "ghost"}
-              onClick={() => setMode("team")}
-            >
-              <UsersRound /> Team schedule
-            </Button>
-            <Button
-              size="sm"
-              variant={mode === "shifts" ? "secondary" : "ghost"}
-              onClick={() => setMode("shifts")}
-            >
-              <Clock3 /> Shifts
-            </Button>
-          </div>
-          {mode === "team" ? (
-            <div className="flex items-center gap-2">
-              <Label
-                htmlFor="department"
-                className="font-mono text-[0.58rem] text-muted-foreground uppercase"
-              >
-                Department
-              </Label>
-              <Select
-                id="department"
-                value={department}
-                onChange={(event) =>
-                  setDepartment(event.target.value as DepartmentId | "all")
-                }
-                className="h-9 w-44"
-              >
-                <option value="all">All departments</option>
-                {(Object.keys(departments) as DepartmentId[]).map((id) => (
-                  <option key={id} value={id}>
-                    {departments[id].name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : (
-            <Select
-              aria-label="Team member"
-              value={person}
-              onChange={(event) => setPerson(event.target.value)}
-              className="h-9 w-52"
-            >
-              {members.map((member) => (
-                <option key={member.id}>{member.name}</option>
-              ))}
-            </Select>
-          )}
-        </div>
-
         {mode === "team" ? (
-          <TeamCalendar blocks={visibleBlocks} />
-        ) : (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl border border-border/80 bg-secondary p-4 shadow-[0_4px_15px_rgba(55,39,31,.025)]">
-              <div>
-                <p className="font-mono text-[0.56rem] font-bold text-primary uppercase">
-                  Commitment view
-                </p>
-                <h2 className="mt-1 text-base font-semibold">{person}</h2>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Previous week"
-                  disabled={week === 0}
-                  onClick={() => setWeek((value) => Math.max(0, value - 1))}
-                >
-                  <ChevronLeft />
-                </Button>
-                <span className="min-w-24 text-center text-xs font-semibold">
-                  Sep {week * 7 + 1}–{week * 7 + 7}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Next week"
-                  disabled={week === 3}
-                  onClick={() => setWeek((value) => Math.min(3, value + 1))}
-                >
-                  <ChevronRight />
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                ["Scheduled", `${scheduledHours}h`],
-                ["Worked", week === 1 ? "14h 32m" : "0h"],
-                [
-                  "Variance",
-                  week === 1
-                    ? `−${Math.max(0, scheduledHours - 14)}h`
-                    : `−${scheduledHours}h`,
-                ],
-              ].map(([label, value]) => (
-                <article
-                  key={label}
-                  className="rounded-xl border border-border/80 bg-secondary p-5 shadow-[0_4px_15px_rgba(55,39,31,.025)]"
-                >
-                  <p className="font-mono text-[0.56rem] font-bold text-muted-foreground uppercase">
-                    {label}
+          <>
+            <section className="rounded-xl border border-border bg-card p-4">
+              <div className="grid gap-3 lg:grid-cols-[1fr_14rem_auto]">
+                <div>
+                  <p className="font-mono text-[0.55rem] font-bold text-muted-foreground uppercase">
+                    People
                   </p>
-                  <strong className="mt-2 block text-2xl tracking-tight">
-                    {value}
-                  </strong>
-                </article>
-              ))}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {operations.state.members.map((member) => (
+                      <label
+                        key={member.id}
+                        className="flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-2 text-xs"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedMembers.includes(member.id)}
+                          onChange={(event) =>
+                            setSelectedMembers((current) =>
+                              event.target.checked
+                                ? [...current, member.id]
+                                : current.filter((id) => id !== member.id),
+                            )
+                          }
+                        />
+                        {member.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <label>
+                  <span className="font-mono text-[0.55rem] font-bold text-muted-foreground uppercase">
+                    Department
+                  </span>
+                  <Select
+                    value={department}
+                    onChange={(event) =>
+                      setDepartment(event.target.value as DepartmentId | "all")
+                    }
+                    className="mt-2"
+                  >
+                    <option value="all">All departments</option>
+                    {lzDepartments().map((id) => (
+                      <option key={id} value={id}>
+                        {departments[id].name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <div className="self-end text-xs text-muted-foreground">
+                  Merged week ·{" "}
+                  {new Set(blocks.map((block) => block.memberId)).size} people
+                </div>
+              </div>
+            </section>
+            {configuring ? (
+              <ConfigureTools onDone={() => setConfiguring(false)} />
+            ) : null}
+            <TeamCalendar
+              blocks={blocks}
+              configuring={configuring}
+              onOpenDay={(day) => {
+                setPersonId(operations.currentMember.id);
+                setDrawerDay(day);
+              }}
+            />
+            <section className="rounded-xl border border-border bg-card p-4">
+              <strong className="text-sm">
+                Redistribute hours instead of forcing identical days.
+              </strong>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Generate a base schedule, mark rest days, then move or resize
+                your own blocks while keeping the weekly target visible.
+              </p>
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="rounded-xl border border-border bg-card p-4">
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                <label>
+                  <span className="font-mono text-[0.55rem] font-bold text-muted-foreground uppercase">
+                    Member
+                  </span>
+                  <Select
+                    value={personId}
+                    onChange={(event) => setPersonId(event.target.value)}
+                    className="mt-2"
+                  >
+                    <option value={operations.currentMember.id}>
+                      {operations.currentMember.name} (you)
+                    </option>
+                    {operations.state.members
+                      .filter(
+                        (member) => member.id !== operations.currentMember.id,
+                      )
+                      .map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                  </Select>
+                </label>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Previous week"
+                    onClick={() => setWeek((value) => value - 1)}
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <span className="min-w-28 text-center text-xs font-semibold">
+                    {weekLabel(week)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Next week"
+                    onClick={() => setWeek((value) => value + 1)}
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
+              </div>
+            </section>
+            <header>
+              <p className="font-mono text-[0.56rem] font-bold text-primary uppercase">
+                Planned vs actual
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold">
+                {person.name}&apos;s shifts
+              </h2>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Compare scheduled commitment with recorded work sessions one
+                week at a time.
+              </p>
+            </header>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Stat
+                label="Scheduled"
+                value={`${planned}h`}
+                note="Effective planned hours"
+              />
+              <Stat
+                label="Worked"
+                value={`${round(worked)}h`}
+                note="Recorded Time In / Out"
+              />
+              <Stat
+                label="Variance"
+                value={`${round(worked - planned)}h`}
+                note="Worked minus scheduled"
+              />
+              <Stat
+                label="Schedule overlap"
+                value={`${round(Math.min(worked, planned))}h`}
+                note="Worked inside planned windows"
+              />
             </div>
-            <div className="overflow-hidden rounded-xl border border-border/80 bg-secondary shadow-[0_4px_15px_rgba(55,39,31,.025)]">
+            <section className="overflow-hidden rounded-xl border border-border bg-card">
+              <header className="border-b border-border p-4">
+                <h3 className="text-sm font-semibold">Week comparison</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Select any day to inspect its default schedule, override, and
+                  actual sessions.
+                </p>
+              </header>
               {days.map((day, index) => {
-                const blocks = personBlocks.filter(
+                const dayBlocks = personBlocks.filter(
                   (block) => block.day === index,
                 );
-                const planned = blocks.reduce(
-                  (sum, block) => sum + block.duration,
+                const dayHours = dayBlocks.reduce(
+                  (sum, block) => sum + block.end - block.start,
                   0,
                 );
                 return (
-                  <div
+                  <button
                     key={day}
-                    className="grid gap-3 border-b border-border/70 bg-muted/45 p-4 last:border-b-0 even:bg-secondary sm:grid-cols-[10rem_1fr_auto] sm:items-center"
+                    type="button"
+                    onClick={() => setDrawerDay(index)}
+                    className="grid w-full gap-3 border-b border-border/70 p-4 text-left last:border-b-0 hover:bg-secondary/60 sm:grid-cols-[10rem_1fr_auto] sm:items-center"
                   >
                     <div>
                       <strong className="text-sm">{day}</strong>
-                      <p className="mt-1 font-mono text-[0.55rem] text-muted-foreground">
-                        {dates[index]}
+                      <p className="mt-1 font-mono text-[0.52rem] text-muted-foreground">
+                        {dayDate(week, index)}
                       </p>
                     </div>
                     <div>
-                      {blocks.length ? (
-                        blocks.map((block) => (
+                      {dayBlocks.length ? (
+                        dayBlocks.map((block) => (
                           <span
-                            key={`${block.start}-${block.duration}`}
-                            className="mr-2 inline-flex rounded-lg border border-primary/20 bg-primary/8 px-3 py-2 text-xs font-medium"
+                            key={block.id}
+                            className="mr-2 inline-flex rounded-lg bg-secondary px-3 py-2 text-xs"
                           >
-                            {formatHour(block.start)}–
-                            {formatHour(block.start + block.duration)}
+                            {formatHour(block.start)}–{formatHour(block.end)}
                           </span>
                         ))
                       ) : (
@@ -253,183 +323,557 @@ export function ScheduleWorkspace() {
                         </span>
                       )}
                     </div>
-                    <span className="font-mono text-[0.6rem] font-bold text-muted-foreground">
-                      {planned}h planned
+                    <span className="font-mono text-[0.56rem] text-muted-foreground">
+                      {dayHours}h planned
                     </span>
-                  </div>
+                  </button>
                 );
               })}
-            </div>
-          </section>
+            </section>
+          </>
         )}
       </PageContainer>
-
-      <div className="fixed right-4 bottom-4 z-30 sm:right-6 sm:bottom-6">
-        <LiquidGlass
-          kind="control"
-          renderKey={timedIn ? "active" : "idle"}
-          className="rounded-2xl"
-          contentClassName="p-1.5"
-        >
-          <button
-            type="button"
-            onClick={() => setTimedIn((value) => !value)}
-            className={cn(
-              "flex min-w-48 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors",
-              timedIn
-                ? "bg-primary text-primary-foreground"
-                : "bg-card/25 text-foreground hover:bg-card/45",
-            )}
-          >
-            <span
-              className={cn(
-                "size-2 rounded-full",
-                timedIn ? "animate-pulse bg-white" : "bg-primary",
-              )}
-            />
-            <span>
-              <strong className="block text-sm">
-                {timedIn ? "Time Out" : "Time In"}
-              </strong>
-              <small
-                className={cn(
-                  "mt-0.5 block text-[0.62rem]",
-                  timedIn ? "text-white/75" : "text-muted-foreground",
-                )}
-              >
-                {timedIn
-                  ? "Session in progress · 00:00"
-                  : "Start a work session"}
-              </small>
-            </span>
-          </button>
-        </LiquidGlass>
-      </div>
-
-      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <p className="font-mono text-[0.6rem] font-bold tracking-[.1em] text-primary uppercase">
-              Schedule preferences
-            </p>
-            <DialogTitle>Configure my schedule</DialogTitle>
-            <DialogDescription>
-              Set the commitment used to generate your initial weekly plan.
-              Changes remain local in this prototype.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="weekly">Weekly hours</Label>
-              <Input id="weekly" type="number" defaultValue={20} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="daily">Hours per day</Label>
-              <Input id="daily" type="number" defaultValue={4} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rest">Rest days</Label>
-              <Input id="rest" type="number" defaultValue={2} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfigOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setConfigOpen(false)}>
-              Generate schedule
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ScheduleDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        onConfigure={() => {
+          setConfigOpen(false);
+          setMode("team");
+          setConfiguring(true);
+        }}
+      />
+      <DayDrawer
+        memberId={personId}
+        week={week}
+        day={drawerDay}
+        onClose={() => setDrawerDay(null)}
+      />
     </div>
   );
 }
 
 function TeamCalendar({
   blocks,
+  configuring,
+  onOpenDay,
 }: {
-  blocks: ReadonlyArray<(typeof scheduleBlocks)[number]>;
+  blocks: ScheduleBlock[];
+  configuring: boolean;
+  onOpenDay: (day: number) => void;
 }) {
+  const operations = useOperationalDemo();
   return (
-    <section className="overflow-hidden rounded-xl border border-border/80 bg-secondary shadow-[0_4px_15px_rgba(55,39,31,.025)]">
-      <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <header className="flex items-center justify-between border-b border-border p-4">
         <div>
-          <h2 className="text-sm font-semibold">Merged weekly schedule</h2>
+          <h2 className="text-sm font-semibold">Team Schedule</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Sep 7–13 · {new Set(blocks.map((block) => block.person)).size}{" "}
-            people shown
+            Each horizontal band is one hour. Simultaneous schedules split into
+            visual lanes.
           </p>
         </div>
-        <span className="hidden items-center gap-2 text-[0.65rem] text-muted-foreground sm:flex">
-          <i className="size-2 rounded-full bg-primary" /> Your schedule{" "}
-          <i className="ml-2 size-2 rounded-full bg-chart-4" /> Team
-        </span>
-      </div>
+        <div className="hidden text-[0.62rem] text-muted-foreground sm:block">
+          7:00 AM–12:00 AM
+        </div>
+      </header>
       <div className="overflow-x-auto">
         <div className="grid min-w-[68rem] grid-cols-[5rem_repeat(7,minmax(8.5rem,1fr))]">
-          <div className="border-r border-b border-border/70 bg-muted p-3 font-mono text-[0.55rem] font-bold text-muted-foreground uppercase">
-            Time
+          <div className="border-r border-b border-border bg-muted p-3 font-mono text-[0.52rem] text-muted-foreground">
+            TIME
           </div>
           {days.map((day, index) => (
-            <div
+            <button
               key={day}
-              className="border-r border-b border-border/70 bg-muted p-3 text-center last:border-r-0"
+              type="button"
+              onClick={() => onOpenDay(index)}
+              className="border-r border-b border-border bg-muted p-3 text-left last:border-r-0"
             >
-              <strong className="block text-xs">{day}</strong>
-              <span className="mt-1 block font-mono text-[0.52rem] text-muted-foreground">
-                {dates[index]}
+              <strong className="text-xs">{day}</strong>
+              <span className="mt-1 block font-mono text-[0.5rem] text-muted-foreground">
+                {dayDate(0, index)}
               </span>
-            </div>
+            </button>
           ))}
-          <div className="relative border-r border-border/70">
-            {hours.map((hour) => (
-              <div
-                key={hour}
-                className="h-12 border-b border-border/50 px-2 pt-1 text-right font-mono text-[0.5rem] text-muted-foreground"
-              >
+          {hours.map((hour) => (
+            <div key={hour} className="contents">
+              <div className="border-r border-b border-border/60 p-2 font-mono text-[0.48rem] text-muted-foreground">
                 {formatHour(hour)}
               </div>
-            ))}
-          </div>
-          {days.map((day, dayIndex) => (
-            <div
-              key={day}
-              className="relative border-r border-border/70 last:border-r-0"
-            >
-              {hours.map((hour) => (
-                <div key={hour} className="h-12 border-b border-border/50" />
+              {days.map((_, day) => (
+                <div
+                  key={`${day}-${hour}`}
+                  className="relative min-h-14 border-r border-b border-border/60 p-1"
+                >
+                  {blocks
+                    .filter(
+                      (block) => block.day === day && block.start === hour,
+                    )
+                    .map((block, index) => {
+                      const member = operations.state.members.find(
+                        (item) => item.id === block.memberId,
+                      );
+                      const mine =
+                        block.memberId === operations.currentMember.id;
+                      return (
+                        <div
+                          key={block.id}
+                          className={cn(
+                            "relative z-10 mb-1 rounded-md border border-chart-4/20 bg-chart-4/10 p-1.5 text-[0.55rem]",
+                            mine && "border-primary/25 bg-primary/10",
+                          )}
+                          style={{ marginLeft: `${index * 8}px` }}
+                        >
+                          <strong className="block truncate">
+                            {member?.name}
+                          </strong>
+                          <span>
+                            {formatHour(block.start)}–{formatHour(block.end)}
+                          </span>
+                          {configuring && mine ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <Mini
+                                onClick={() =>
+                                  operations.adjustSchedule(block.id, -1, 0)
+                                }
+                              >
+                                Earlier
+                              </Mini>
+                              <Mini
+                                onClick={() =>
+                                  operations.adjustSchedule(block.id, 1, 0)
+                                }
+                              >
+                                Later
+                              </Mini>
+                              <Mini
+                                onClick={() =>
+                                  operations.adjustSchedule(block.id, 0, 1)
+                                }
+                              >
+                                +1h
+                              </Mini>
+                              <Mini
+                                onClick={() =>
+                                  operations.adjustSchedule(block.id, 0, -1)
+                                }
+                              >
+                                −1h
+                              </Mini>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                </div>
               ))}
-              {blocks
-                .filter((block) => block.day === dayIndex)
-                .map((block, index, sameDay) => (
-                  <div
-                    key={`${block.person}-${block.start}`}
-                    title={`${block.person}: ${formatHour(block.start)}–${formatHour(block.start + block.duration)}`}
-                    className={cn(
-                      "absolute overflow-hidden rounded-lg border px-2 py-1.5 text-[0.58rem] leading-4 shadow-sm",
-                      block.person === "Nico Ramos"
-                        ? "border-primary/25 bg-primary/90 text-primary-foreground"
-                        : "border-chart-4/25 bg-chart-4/85 text-white",
-                    )}
-                    style={{
-                      top: `${(block.start - 7) * 48 + 3}px`,
-                      height: `${block.duration * 48 - 6}px`,
-                      left: `${4 + (index % 2) * 49}%`,
-                      width: sameDay.length > 1 ? "46%" : "94%",
-                    }}
-                  >
-                    <strong className="block truncate">{block.person}</strong>
-                    <span className="opacity-80">
-                      {formatHour(block.start)}–
-                      {formatHour(block.start + block.duration)}
-                    </span>
-                  </div>
-                ))}
             </div>
           ))}
         </div>
       </div>
     </section>
   );
+}
+
+function ConfigureTools({ onDone }: { onDone: () => void }) {
+  const operations = useOperationalDemo();
+  const mine = operations.state.schedule.filter(
+    (block) => block.memberId === operations.currentMember.id,
+  );
+  return (
+    <section className="rounded-xl border border-primary/20 bg-card p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-mono text-[0.55rem] font-bold text-primary uppercase">
+            Personal schedule
+          </p>
+          <h2 className="mt-1 text-base font-semibold">
+            Configure my schedule
+          </h2>
+        </div>
+        <Button onClick={onDone}>Done configuring</Button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Use the controls on your calendar blocks to move or resize them.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {days.map((day, index) => (
+          <Button
+            key={day}
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              mine
+                .filter((block) => block.day === index)
+                .forEach((block) =>
+                  operations.adjustSchedule(
+                    block.id,
+                    0,
+                    0,
+                    index === 6 ? -6 : 1,
+                  ),
+                )
+            }
+          >
+            {day}: mark rest / move blocks
+          </Button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ScheduleDialog({
+  open,
+  onOpenChange,
+  onConfigure,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfigure: () => void;
+}) {
+  const operations = useOperationalDemo();
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    operations.generateSchedule(
+      Number(data.get("weekly")),
+      Number(data.get("daily")),
+      Number(data.get("rest")),
+    );
+    onConfigure();
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle>Configure my schedule</DialogTitle>
+            <DialogDescription>
+              Set the initial workload, then shape the week directly on the
+              calendar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field
+              id="weekly"
+              label="Hours per week"
+              defaultValue={20}
+              max={119}
+            />
+            <Field
+              id="daily"
+              label="Initial hours per day"
+              defaultValue={4}
+              max={17}
+            />
+            <Field id="rest" label="Rest days" defaultValue={2} max={6} />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">Generate initial schedule</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DayDrawer({
+  memberId,
+  week,
+  day,
+  onClose,
+}: {
+  memberId: string;
+  week: number;
+  day: number | null;
+  onClose: () => void;
+}) {
+  const operations = useOperationalDemo();
+  const [message, setMessage] = useState("");
+  if (day === null) return null;
+  const selectedDay = day;
+  const member = operations.state.members.find((item) => item.id === memberId);
+  const defaults = operations.state.schedule.filter(
+    (block) => block.memberId === memberId && block.day === selectedDay,
+  );
+  const overrides = operations.state.overrides.filter(
+    (item) =>
+      item.memberId === memberId &&
+      item.weekOffset === week &&
+      item.day === selectedDay,
+  );
+  const actual = operations.state.sessions.filter(
+    (item) => item.memberId === memberId && sessionIsInWeek(item, week),
+  );
+  const scheduled = (overrides.length ? overrides : defaults).reduce(
+    (sum, block) => sum + block.end - block.start,
+    0,
+  );
+  const worked = actual.reduce(
+    (sum, session) => sum + sessionHours(session),
+    0,
+  );
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const start = timeToHour(String(data.get("start")));
+    const end = timeToHour(String(data.get("end")));
+    if (end <= start) {
+      setMessage("End time must be after start time.");
+      return;
+    }
+    operations.addOverride(memberId, week, selectedDay, start, end);
+    setMessage("");
+  }
+  return (
+    <InspectorDrawer
+      open
+      onOpenChange={(value) => !value && onClose()}
+      title={days[selectedDay]}
+      eyebrow="Daily schedule record"
+    >
+      <div className="divide-y divide-border">
+        <DrawerSection
+          title="Default schedule"
+          value={`${defaults.reduce((sum, block) => sum + block.end - block.start, 0)}h`}
+        >
+          {defaults.length ? (
+            defaults.map((block) => <BlockLabel key={block.id} block={block} />)
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No default schedule.
+            </p>
+          )}
+        </DrawerSection>
+        <DrawerSection title="Schedule override" value="Changes this date only">
+          <div className="space-y-2">
+            {overrides.map((block) => (
+              <BlockLabel key={block.id} block={block} />
+            ))}
+          </div>
+          <form onSubmit={submit} className="mt-3 grid grid-cols-2 gap-2">
+            <label className="text-xs">
+              Start
+              <TimePicker
+                name="start"
+                defaultValue="14:00"
+                aria-label="Override start time"
+              />
+            </label>
+            <label className="text-xs">
+              End
+              <TimePicker
+                name="end"
+                defaultValue="18:00"
+                aria-label="Override end time"
+              />
+            </label>
+            <Button type="submit" className="col-span-2">
+              Add override block
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="col-span-2"
+              onClick={() =>
+                operations.clearOverrides(memberId, week, selectedDay)
+              }
+            >
+              Clear override
+            </Button>
+          </form>
+          {message ? (
+            <p className="mt-2 text-xs text-destructive" role="alert">
+              {message}
+            </p>
+          ) : null}
+        </DrawerSection>
+        <DrawerSection title="Actual work sessions" value={`${round(worked)}h`}>
+          {actual.length ? (
+            actual.map((session) => (
+              <p key={session.id} className="text-xs">
+                {new Date(session.startedAt).toLocaleTimeString()}–
+                {session.endedAt
+                  ? new Date(session.endedAt).toLocaleTimeString()
+                  : "In progress"}
+              </p>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No sessions recorded.
+            </p>
+          )}
+        </DrawerSection>
+        <DrawerSection title={member?.name ?? "Member"} value="Daily summary">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <span>
+              Scheduled <strong>{scheduled}h</strong>
+            </span>
+            <span>
+              Worked <strong>{round(worked)}h</strong>
+            </span>
+            <span>
+              Overlap <strong>{round(Math.min(worked, scheduled))}h</strong>
+            </span>
+            <span>
+              Outside <strong>{round(Math.max(0, worked - scheduled))}h</strong>
+            </span>
+          </div>
+        </DrawerSection>
+      </div>
+    </InspectorDrawer>
+  );
+}
+
+function effectiveBlocks(
+  blocks: ScheduleBlock[],
+  overrides: Array<ScheduleBlock & { weekOffset?: number }>,
+  memberId: string,
+  week: number,
+) {
+  const custom = overrides.filter(
+    (block) => block.memberId === memberId && block.weekOffset === week,
+  );
+  return custom.length
+    ? [
+        ...blocks.filter(
+          (block) =>
+            block.memberId === memberId &&
+            !custom.some((item) => item.day === block.day),
+        ),
+        ...custom,
+      ]
+    : blocks.filter((block) => block.memberId === memberId);
+}
+function Stat({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <article className="rounded-xl border border-border bg-card p-5">
+      <p className="font-mono text-[0.55rem] font-bold text-muted-foreground uppercase">
+        {label}
+      </p>
+      <strong className="mt-2 block text-2xl">{value}</strong>
+      <small className="text-muted-foreground">{note}</small>
+    </article>
+  );
+}
+function DrawerSection({
+  title,
+  value,
+  children,
+}: {
+  title: string;
+  value: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="p-5">
+      <div className="mb-3 flex justify-between gap-3">
+        <strong className="text-sm">{title}</strong>
+        <span className="text-[0.62rem] text-muted-foreground">{value}</span>
+      </div>
+      {children}
+    </section>
+  );
+}
+function BlockLabel({
+  block,
+}: {
+  block: Pick<ScheduleBlock, "id" | "start" | "end">;
+}) {
+  return (
+    <p className="rounded-lg bg-secondary px-3 py-2 text-xs">
+      {formatHour(block.start)}–{formatHour(block.end)}
+    </p>
+  );
+}
+function Mini({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded bg-card px-1 py-0.5 text-[0.48rem]"
+    >
+      {children}
+    </button>
+  );
+}
+function Field({
+  id,
+  label,
+  defaultValue,
+  max,
+}: {
+  id: string;
+  label: string;
+  defaultValue: number;
+  max: number;
+}) {
+  return (
+    <label>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        name={id}
+        type="number"
+        min={id === "rest" ? 0 : 1}
+        max={max}
+        defaultValue={defaultValue}
+      />
+    </label>
+  );
+}
+function formatHour(hour: number) {
+  const value = hour % 24;
+  if (value === 0) return "12 AM";
+  if (value === 12) return "12 PM";
+  return `${value > 12 ? value - 12 : value} ${value >= 12 ? "PM" : "AM"}`;
+}
+function timeToHour(value: string) {
+  const [hour, minute] = value.split(":").map(Number);
+  return (hour ?? 0) + (minute ?? 0) / 60;
+}
+function round(value: number) {
+  return Math.round(value * 10) / 10;
+}
+function weekLabel(offset: number) {
+  const start = startOfWeek(offset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `${start.toLocaleDateString("en", { month: "short", day: "numeric" })}–${end.toLocaleDateString("en", { month: "short", day: "numeric" })}`;
+}
+function dayDate(offset: number, day: number) {
+  const date = startOfWeek(offset);
+  date.setDate(date.getDate() + day);
+  return date.toLocaleDateString("en", { month: "short", day: "numeric" });
+}
+function startOfWeek(offset: number) {
+  const date = new Date();
+  const weekday = (date.getDay() + 6) % 7;
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - weekday + offset * 7);
+  return date;
+}
+function lzDepartments() {
+  return Object.keys(departments) as DepartmentId[];
 }

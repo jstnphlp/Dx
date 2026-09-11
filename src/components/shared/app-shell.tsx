@@ -17,13 +17,18 @@ import {
 import { Liquid } from "liquid-gooey";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { Badge } from "@/components/ui/badge";
 import { appConfig } from "@/config/app";
 import { signOutAction } from "@/features/auth/actions";
 import type { CurrentUser } from "@/features/auth/queries";
+import {
+  OperationalDemoProvider,
+  sessionHours,
+  useOperationalDemo,
+} from "@/features/operations/store";
 import { cn } from "@/lib/utils";
 
 type NavigationItem = {
@@ -33,7 +38,7 @@ type NavigationItem = {
 };
 
 const workspaceNavigation: ReadonlyArray<NavigationItem> = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
   { label: "Visiwork", href: "/visiwork", icon: PanelsTopLeft },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Schedule", href: "/schedule", icon: CalendarDays },
@@ -421,104 +426,202 @@ export function AppShell({ user, children }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="relative min-h-svh overflow-x-clip bg-background">
-      <div className="app-scene" aria-hidden="true" />
+    <OperationalDemoProvider user={user}>
+      <div className="relative min-h-svh overflow-x-clip bg-background">
+        <div className="app-scene" aria-hidden="true" />
 
-      <div
-        className={cn(
-          "relative z-10 transition-[grid-template-columns] duration-200 ease-out lg:grid",
-          sidebarCollapsed
-            ? "lg:grid-cols-[5rem_minmax(0,1fr)]"
-            : "lg:grid-cols-[15.75rem_minmax(0,1fr)]",
-        )}
-      >
-        <aside className="sticky top-0 hidden h-svh min-w-0 self-start p-3 pr-2 lg:flex">
-          <LiquidGlass
-            kind="navigation"
-            className="navigation-glass h-full w-full overflow-visible! rounded-[1.9rem]"
-            contentClassName={cn(
-              "flex h-full flex-col py-4 transition-[padding] duration-200",
-              sidebarCollapsed ? "px-2" : "px-3.5",
-            )}
-          >
-            <div
-              className={cn(
-                "flex border-b border-foreground/10 px-1 pb-4",
-                sidebarCollapsed
-                  ? "flex-col items-center gap-2"
-                  : "items-center justify-between gap-2",
+        <div
+          className={cn(
+            "relative z-10 transition-[grid-template-columns] duration-200 ease-out lg:grid",
+            sidebarCollapsed
+              ? "lg:grid-cols-[5rem_minmax(0,1fr)]"
+              : "lg:grid-cols-[15.75rem_minmax(0,1fr)]",
+          )}
+        >
+          <aside className="sticky top-0 hidden h-svh min-w-0 self-start p-3 pr-2 lg:flex">
+            <LiquidGlass
+              kind="navigation"
+              className="navigation-glass h-full w-full overflow-visible! rounded-[1.9rem]"
+              contentClassName={cn(
+                "flex h-full flex-col py-4 transition-[padding] duration-200",
+                sidebarCollapsed ? "px-2" : "px-3.5",
               )}
             >
-              <Brand compact={sidebarCollapsed} />
-              <button
-                type="button"
-                aria-label={
-                  sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
-                }
-                aria-expanded={!sidebarCollapsed}
-                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/55 transition-colors hover:bg-card/35 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                {sidebarCollapsed ? (
-                  <PanelLeftOpen className="size-4" />
-                ) : (
-                  <PanelLeftClose className="size-4" />
+              <div
+                className={cn(
+                  "flex border-b border-foreground/10 px-1 pb-4",
+                  sidebarCollapsed
+                    ? "flex-col items-center gap-2"
+                    : "items-center justify-between gap-2",
                 )}
-              </button>
-            </div>
+              >
+                <Brand compact={sidebarCollapsed} />
+                <button
+                  type="button"
+                  aria-label={
+                    sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                  }
+                  aria-expanded={!sidebarCollapsed}
+                  onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/55 transition-colors hover:bg-card/35 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  {sidebarCollapsed ? (
+                    <PanelLeftOpen className="size-4" />
+                  ) : (
+                    <PanelLeftClose className="size-4" />
+                  )}
+                </button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto pt-5">
-              <SidebarNavigation compact={sidebarCollapsed} />
-            </div>
+              <div className="flex-1 overflow-y-auto pt-5">
+                <SidebarNavigation compact={sidebarCollapsed} />
+              </div>
 
-            <div className="border-t border-foreground/10 pt-3">
-              <SidebarAccount user={user} compact={sidebarCollapsed} />
-            </div>
-          </LiquidGlass>
-        </aside>
-
-        <div className="min-w-0">
-          <header className="sticky top-0 z-30 p-2.5 lg:hidden">
-            <LiquidGlass
-              kind="toolbar"
-              className="h-14 rounded-2xl border border-white/80"
-              contentClassName="flex h-full items-center justify-between px-3.5"
-            >
-              <Brand />
-              <details className="group relative">
-                <summary className="flex size-9 list-none items-center justify-center rounded-xl border border-white/60 bg-card/42 text-sidebar-foreground transition-colors hover:bg-card/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-                  <span className="sr-only">Open navigation</span>
-                  <Menu className="size-4" />
-                </summary>
-                <div className="absolute top-[calc(100%+0.75rem)] right-0 w-72">
-                  <LiquidGlass
-                    kind="overlay"
-                    className="overlay-glass overflow-hidden rounded-xl shadow-xl shadow-foreground/10"
-                    contentClassName="p-2 text-popover-foreground"
-                  >
-                    <div className="mb-3 px-2 py-1">
-                      <UserSummary user={user} />
-                    </div>
-                    <div className="space-y-4">
-                      <NavigationGroup
-                        label="Workspace"
-                        items={workspaceNavigation}
-                      />
-                      <NavigationGroup
-                        label="Personal"
-                        items={personalNavigation}
-                      />
-                    </div>
-                    <AccountLinks />
-                  </LiquidGlass>
-                </div>
-              </details>
+              <div className="border-t border-foreground/10 pt-3">
+                <SidebarAccount user={user} compact={sidebarCollapsed} />
+              </div>
             </LiquidGlass>
-          </header>
+          </aside>
 
-          <main className="min-w-0">{children}</main>
+          <div className="min-w-0">
+            <header className="sticky top-0 z-30 p-2.5 lg:hidden">
+              <LiquidGlass
+                kind="toolbar"
+                className="h-14 rounded-2xl border border-white/80"
+                contentClassName="flex h-full items-center justify-between px-3.5"
+              >
+                <Brand />
+                <details className="group relative">
+                  <summary className="flex size-9 list-none items-center justify-center rounded-xl border border-white/60 bg-card/42 text-sidebar-foreground transition-colors hover:bg-card/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                    <span className="sr-only">Open navigation</span>
+                    <Menu className="size-4" />
+                  </summary>
+                  <div className="absolute top-[calc(100%+0.75rem)] right-0 w-72">
+                    <LiquidGlass
+                      kind="overlay"
+                      className="overlay-glass overflow-hidden rounded-xl shadow-xl shadow-foreground/10"
+                      contentClassName="p-2 text-popover-foreground"
+                    >
+                      <div className="mb-3 px-2 py-1">
+                        <UserSummary user={user} />
+                      </div>
+                      <div className="space-y-4">
+                        <NavigationGroup
+                          label="Workspace"
+                          items={workspaceNavigation}
+                        />
+                        <NavigationGroup
+                          label="Personal"
+                          items={personalNavigation}
+                        />
+                      </div>
+                      <AccountLinks />
+                    </LiquidGlass>
+                  </div>
+                </details>
+              </LiquidGlass>
+            </header>
+
+            <main className="min-w-0">{children}</main>
+          </div>
         </div>
+        <GlobalWorkSessionControl />
       </div>
+    </OperationalDemoProvider>
+  );
+}
+
+function GlobalWorkSessionControl() {
+  const { state, currentMember, toggleTime } = useOperationalDemo();
+  const [now, setNow] = useState(() => Date.now());
+  const openSession = state.sessions.find(
+    (session) => session.memberId === currentMember.id && !session.endedAt,
+  );
+  const today = (new Date(now).getDay() + 6) % 7;
+  const planned = state.schedule
+    .filter(
+      (block) => block.memberId === currentMember.id && block.day === today,
+    )
+    .reduce((sum, block) => sum + block.end - block.start, 0);
+  const worked = state.sessions
+    .filter(
+      (session) =>
+        session.memberId === currentMember.id &&
+        new Date(session.startedAt).toDateString() ===
+          new Date(now).toDateString(),
+    )
+    .reduce((sum, session) => sum + sessionHours(session, now), 0);
+  const progress = planned
+    ? Math.min(100, Math.round((worked / planned) * 100))
+    : 0;
+
+  useEffect(() => {
+    if (!openSession) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [openSession]);
+
+  const elapsedSeconds = openSession
+    ? Math.max(
+        0,
+        Math.floor((now - new Date(openSession.startedAt).getTime()) / 1000),
+      )
+    : 0;
+  const elapsed = [
+    Math.floor(elapsedSeconds / 3600),
+    Math.floor((elapsedSeconds % 3600) / 60),
+    elapsedSeconds % 60,
+  ]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":");
+
+  return (
+    <div className="fixed right-3 bottom-3 z-40 sm:right-5 sm:bottom-5">
+      <LiquidGlass
+        kind="control"
+        renderKey={openSession ? "active" : "idle"}
+        className={cn(
+          "w-[11.875rem] overflow-hidden rounded-[0.9rem] transition-all",
+          openSession &&
+            "border-primary/25 shadow-[0_9px_24px_rgba(68,123,80,.12)]",
+        )}
+        contentClassName="relative"
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-y-0 left-0 bg-foreground/6 transition-[width,background-color] duration-500",
+            openSession && "bg-chart-2/12",
+          )}
+          style={{ width: `${progress}%` }}
+        />
+        <button
+          type="button"
+          onClick={toggleTime}
+          className="relative flex min-h-12 w-full items-center gap-2 px-3 py-2 text-left"
+          aria-label={openSession ? "Time out" : "Time in"}
+        >
+          <span
+            className={cn(
+              "size-2 shrink-0 rounded-full bg-muted-foreground/45",
+              openSession && "animate-pulse bg-chart-2",
+            )}
+          />
+          <span className="min-w-0 flex-1">
+            <strong className="block text-[0.68rem] text-foreground/75">
+              {openSession ? `Time Out · ${elapsed}` : "Time In"}
+            </strong>
+            <small className="block truncate text-[0.58rem] text-muted-foreground">
+              {openSession
+                ? "Work session in progress"
+                : "Start a work session"}
+            </small>
+          </span>
+          <span className="font-mono text-[0.5rem] text-muted-foreground">
+            {planned ? `${progress}%` : "No plan"}
+          </span>
+        </button>
+      </LiquidGlass>
     </div>
   );
 }

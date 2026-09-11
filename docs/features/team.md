@@ -3,13 +3,13 @@
 ## Outcome
 
 - Provide an authenticated team directory with availability, department, today's plan, and weekly commitment.
-- Users can locally toggle demo availability and navigate to the schedule.
+- Availability is derived from the shared Time In/Out and schedule state, and users can navigate to member shifts.
 - Directory management, invitations, role changes, and persisted attendance are excluded.
 
 ## Access and data
 
 - All authenticated starter users can view the prototype.
-- People and schedule metrics are local demo data and produce no audit events.
+- People and schedule metrics are validated per-user browser data and produce local activity history, not audit events.
 
 ## Acceptance
 

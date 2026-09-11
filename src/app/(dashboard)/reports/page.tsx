@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { ComingSoonPage } from "@/components/shared/coming-soon-page";
+import { OperationsReports } from "@/features/reports/components/operations-reports";
 
 export const metadata: Metadata = { title: "Reports & Analytics" };
 
 export default function ReportsPage() {
-  return <ComingSoonPage title="Reports & Analytics" />;
+  return <OperationsReports />;
 }

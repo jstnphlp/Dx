@@ -260,6 +260,10 @@ Use the repository's existing form stack:
 - shared `Input`, `Textarea`, `Select`, `Label`, and `FormMessage`;
 - repeat validation in the Server Action.
 
+`Select` is the application dropdown primitive. It renders the warm Prometheus trigger and an accessible Base UI popup while retaining native form and React Hook Form compatibility. Do not add visible browser-native `<select>` controls in feature code.
+
+Use `TimePicker` for user-selected times. It exposes designed hour, minute, and period controls and submits a normalized 24-hour value. Do not use visible `input[type="time"]`. There is currently no date-input workflow; when one is introduced, add or reuse a shared accessible calendar primitive rather than relying on an unstyled browser calendar.
+
 Prototype-only local forms may use simple local state, but production feature work must follow `AGENTS.md` and `docs/creating-a-feature.md`.
 
 Form containers are solid. Inputs should not use Liquid Glass.

@@ -3,18 +3,20 @@
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   ChevronRight,
-  CircleDot,
   FileText,
+  Megaphone,
+  Pencil,
+  Pin,
   Plus,
   Search,
-  Settings2,
-  X,
+  Trash2,
+  UsersRound,
 } from "lucide-react";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
-import { InspectorDrawer } from "@/components/shared/inspector-drawer";
-import { LiquidGlass } from "@/components/shared/liquid-glass";
+import { PageContainer } from "@/components/shared/page-container";
 import { WorkspaceToolbar } from "@/components/shared/workspace-toolbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,164 +31,1293 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { departments } from "@/features/operations/demo-data";
 import {
-  departments,
-  projects as projectCatalog,
+  outcomeProgress,
+  projectProgress,
+  useOperationalDemo,
   type DepartmentId,
-  type ProjectDemo,
-} from "@/features/operations/demo-data";
+  type OperationalOutcome,
+  type OperationalProject,
+  type OperationalStage,
+  type OutcomeStatus,
+  type ProjectStatus,
+} from "@/features/operations/store";
+import { cn } from "@/lib/utils";
 
-import { demoProject, demoStages } from "../demo-data";
-import type {
-  Outcome,
-  OutcomeState,
-  ProjectStage,
-  ProjectSummary,
-} from "../types";
+type Tab = "content" | "chat" | "activity";
+type DialogState =
+  | { kind: "project" }
+  | { kind: "stage"; stage?: OperationalStage }
+  | { kind: "outcome"; stageId: string }
+  | null;
 
-const stateStyles: Record<OutcomeState, string> = {
+const statusStyles: Record<OutcomeStatus, string> = {
   Accepted: "border-primary/25 bg-primary/10 text-primary-strong",
   "For review": "border-chart-3/25 bg-chart-3/10 text-chart-3",
+  "Needs revision": "border-chart-5/25 bg-chart-5/10 text-chart-5",
   "In progress": "border-chart-4/25 bg-chart-4/10 text-chart-4",
-  Blocked: "border-chart-3/30 bg-chart-3/10 text-chart-3",
+  Blocked: "border-chart-3/25 bg-chart-3/10 text-chart-3",
   Planned: "border-border bg-muted text-muted-foreground",
+  Skipped: "border-border bg-muted text-muted-foreground",
 };
 
-const departmentStyles: Record<string, string> = {
-  Creatives: "border-chart-3/20 bg-chart-3/10 text-chart-3",
-  "R&D": "border-chart-4/20 bg-chart-4/10 text-chart-4",
-  "S&M": "border-chart-5/20 bg-chart-5/10 text-chart-5",
-};
+export function ProjectBoard() {
+  const operations = useOperationalDemo();
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [outcomeId, setOutcomeId] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("content");
+  const [scope, setScope] = useState<"mine" | "whole">("mine");
+  const [dialog, setDialog] = useState<DialogState>(null);
 
-type DialogName = "project" | "settings" | "outcome" | null;
-type CreatedProject = ProjectSummary & {
-  initialStage: string;
-  departments: DepartmentId[];
-  portfolioStatus: ProjectDemo["status"];
-};
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedProject = params.get("project");
+    const requestedOutcome = params.get("outcome");
+    if (
+      requestedProject &&
+      operations.state.projects.some((item) => item.id === requestedProject)
+    ) {
+      const timer = window.setTimeout(() => {
+        setProjectId(requestedProject);
+        if (requestedOutcome) setOutcomeId(requestedOutcome);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [operations.state.projects]);
 
-function recalculateStage(stage: ProjectStage): ProjectStage {
-  if (!stage.outcomes.length) return { ...stage, progress: 0 };
-  const accepted = stage.outcomes.filter(
-    (outcome) => outcome.state === "Accepted",
-  ).length;
-  if (accepted === stage.outcomes.length) return { ...stage, progress: 100 };
-  return stage;
-}
+  const project = operations.state.projects.find(
+    (item) => item.id === projectId,
+  );
+  const selectedOutcome = project?.stages
+    .flatMap((stage) => stage.outcomes)
+    .find((item) => item.id === outcomeId);
+  const selectedStage = project?.stages.find((stage) =>
+    stage.outcomes.some((item) => item.id === outcomeId),
+  );
+  if (!project)
+    return (
+      <ProjectLanding
+        onOpen={(id) => {
+          setProjectId(id);
+          setTab("content");
+        }}
+        onCreate={() => setDialog({ kind: "project" })}
+        dialog={dialog}
+        setDialog={setDialog}
+      />
+    );
 
-function getInitials(name: string) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
   return (
-    <div className="space-y-1.5">
-      <Label className="font-mono text-[0.62rem] font-bold tracking-[0.08em] text-muted-foreground uppercase">
-        {label}
-      </Label>
-      {children}
+    <div className="relative min-h-svh pb-16">
+      <WorkspaceToolbar
+        section="Projects"
+        current={
+          selectedOutcome
+            ? `${project.title} / ${selectedOutcome.title}`
+            : project.title
+        }
+        actions={
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={() => {
+              if (selectedOutcome) setOutcomeId(null);
+              else setProjectId(null);
+            }}
+          >
+            <ArrowLeft />
+            {selectedOutcome ? "Back to Content" : "All projects"}
+          </Button>
+        }
+      />
+      <ProjectHeader
+        project={project}
+        onStatus={(status) => operations.setProjectStatus(project.id, status)}
+      />
+      <div className="border-b border-foreground/10 px-5 sm:px-7">
+        <nav className="flex gap-1" aria-label="Project workspace">
+          {(["content", "chat", "activity"] as Tab[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => {
+                setTab(item);
+                setOutcomeId(null);
+              }}
+              className={cn(
+                "border-b-2 border-transparent px-4 py-3 text-xs font-semibold text-muted-foreground capitalize",
+                tab === item && "border-primary text-foreground",
+              )}
+            >
+              {item}
+              {item === "chat" && project.messages.length
+                ? ` ${project.messages.length}`
+                : item === "activity"
+                  ? ` ${operations.state.activity.filter((entry) => entry.projectId === project.id).length}`
+                  : ""}
+            </button>
+          ))}
+        </nav>
+      </div>
+      {tab === "content" ? (
+        selectedOutcome && selectedStage ? (
+          <OutcomeWorkspace
+            key={selectedOutcome.id}
+            project={project}
+            stage={selectedStage}
+            outcome={selectedOutcome}
+            onBack={() => setOutcomeId(null)}
+          />
+        ) : (
+          <ProjectContent
+            project={project}
+            scope={scope}
+            setScope={setScope}
+            onOpenOutcome={setOutcomeId}
+            onDialog={setDialog}
+          />
+        )
+      ) : tab === "chat" ? (
+        <ProjectChat project={project} />
+      ) : (
+        <ProjectActivity
+          project={project}
+          onOpenOutcome={(id) => {
+            setTab("content");
+            setOutcomeId(id);
+          }}
+        />
+      )}
+      <ProjectDialog
+        open={dialog?.kind === "project"}
+        onOpenChange={(open) => setDialog(open ? { kind: "project" } : null)}
+      />
+      <StageDialog
+        project={project}
+        state={dialog?.kind === "stage" ? dialog : null}
+        onOpenChange={(open) => !open && setDialog(null)}
+      />
+      <OutcomeDialog
+        project={project}
+        stageId={dialog?.kind === "outcome" ? dialog.stageId : null}
+        onOpenChange={(open) => !open && setDialog(null)}
+      />
     </div>
+  );
+}
+
+function ProjectLanding({
+  onOpen,
+  onCreate,
+  dialog,
+  setDialog,
+}: {
+  onOpen: (id: string) => void;
+  onCreate: () => void;
+  dialog: DialogState;
+  setDialog: (value: DialogState) => void;
+}) {
+  const { state } = useOperationalDemo();
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<ProjectStatus[]>([]);
+  const groups: ProjectStatus[] = ["Planning", "In Progress", "Done"];
+  const projects = state.projects.filter((project) =>
+    `${project.title} ${project.description}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <div className="relative min-h-svh pb-16">
+      <WorkspaceToolbar section="Workspace" current="Projects" />
+      <div className="px-5 pt-5 sm:px-7 lg:px-8">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:justify-between">
+          <label className="flex w-full max-w-[26rem] items-center gap-2 rounded-xl border border-border bg-card px-3 focus-within:ring-2 focus-within:ring-ring/20">
+            <Search className="size-4 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="h-10 min-w-0 flex-1 border-0 bg-transparent text-xs shadow-none hover:bg-transparent focus-visible:ring-0"
+              placeholder="Search projects…"
+              aria-label="Search projects"
+            />
+          </label>
+          <Button onClick={onCreate}>
+            <Plus /> Add project
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {groups.map((group) => {
+            const items = projects.filter(
+              (project) => project.status === group,
+            );
+            const closed = collapsed.includes(group);
+            return (
+              <section key={group}>
+                <button
+                  type="button"
+                  aria-expanded={!closed}
+                  onClick={() =>
+                    setCollapsed((current) =>
+                      current.includes(group)
+                        ? current.filter((item) => item !== group)
+                        : [...current, group],
+                    )
+                  }
+                  className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-secondary px-4 text-left"
+                >
+                  <ChevronRight
+                    className={cn(
+                      "size-3 transition-transform",
+                      !closed && "rotate-90",
+                    )}
+                  />
+                  <h2 className="text-xs font-semibold">{group}</h2>
+                  <span className="font-mono text-[0.58rem] text-muted-foreground">
+                    {items.length}
+                  </span>
+                </button>
+                {!closed ? (
+                  <div className="flex gap-3 overflow-x-auto py-2 pl-7">
+                    {items.length ? (
+                      items.map((project) => (
+                        <PortfolioCard
+                          key={project.id}
+                          project={project}
+                          onOpen={() => onOpen(project.id)}
+                        />
+                      ))
+                    ) : (
+                      <p className="grid min-h-24 w-full place-items-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">
+                        No {group.toLowerCase()} projects.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
+        </div>
+      </div>
+      <ProjectDialog
+        open={dialog?.kind === "project"}
+        onOpenChange={(open) => setDialog(open ? { kind: "project" } : null)}
+      />
+    </div>
+  );
+}
+
+function PortfolioCard({
+  project,
+  onOpen,
+}: {
+  project: OperationalProject;
+  onOpen: () => void;
+}) {
+  const progress = projectProgress(project);
+  const outcomes = project.stages.flatMap((stage) => stage.outcomes);
+  return (
+    <article className="flex min-h-[14rem] w-[21rem] shrink-0 flex-col rounded-xl border border-border/80 bg-card p-4 shadow-[0_5px_18px_rgba(55,39,31,.03)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-[0.52rem] font-bold text-primary uppercase">
+            Company project
+          </p>
+          <h3 className="mt-1.5 text-sm font-semibold">{project.title}</h3>
+        </div>
+        <Status>{project.status}</Status>
+      </div>
+      <p className="mt-3 line-clamp-2 text-[0.68rem] leading-5 text-muted-foreground">
+        {project.description}
+      </p>
+      <div className="mt-4 rounded-lg bg-secondary p-3">
+        <div className="flex justify-between font-mono text-[0.52rem] font-bold text-muted-foreground uppercase">
+          <span>Overall progress</span>
+          <strong className="text-primary">{progress}%</strong>
+        </div>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
+          <i
+            className="block h-full bg-primary"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="mt-2 text-[0.62rem] text-muted-foreground">
+          {outcomes.filter((item) => item.status === "Accepted").length}{" "}
+          accepted / {outcomes.length} outcomes · {project.stages.length} stages
+        </p>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {project.departments.map((id) => (
+          <span
+            key={id}
+            className="rounded-full bg-secondary px-2 py-1 font-mono text-[0.5rem] text-muted-foreground"
+          >
+            {departments[id].short}
+          </span>
+        ))}
+      </div>
+      <Button
+        variant="ghost"
+        className="mt-auto justify-between border-t border-border/70"
+        onClick={onOpen}
+      >
+        Open workspace <ChevronRight />
+      </Button>
+    </article>
+  );
+}
+
+function ProjectHeader({
+  project,
+  onStatus,
+}: {
+  project: OperationalProject;
+  onStatus: (status: ProjectStatus) => void;
+}) {
+  const outcomes = project.stages.flatMap((stage) => stage.outcomes);
+  return (
+    <header className="bg-transparent px-5 pt-7 pb-6 sm:px-7">
+      <p className="font-mono text-[0.6rem] font-bold tracking-[.12em] text-primary uppercase">
+        Project workspace
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">
+        {project.title}
+      </h1>
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+        {project.description}
+      </p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Meta label="Project lead">{project.lead}</Meta>
+        <Meta label="Assistant lead">{project.assistant}</Meta>
+        <Meta label="State">
+          <Select
+            aria-label="Project state"
+            value={project.status}
+            onChange={(event) => onStatus(event.target.value as ProjectStatus)}
+            className="h-8 text-xs"
+          >
+            <option>Planning</option>
+            <option>In Progress</option>
+            <option>Done</option>
+          </Select>
+        </Meta>
+        <Meta label="Progress">
+          {outcomes.filter((item) => item.status === "Accepted").length}{" "}
+          accepted / {outcomes.length} outcomes
+        </Meta>
+      </div>
+    </header>
+  );
+}
+
+function ProjectContent({
+  project,
+  scope,
+  setScope,
+  onOpenOutcome,
+  onDialog,
+}: {
+  project: OperationalProject;
+  scope: "mine" | "whole";
+  setScope: (scope: "mine" | "whole") => void;
+  onOpenOutcome: (id: string) => void;
+  onDialog: (dialog: DialogState) => void;
+}) {
+  const { currentMember } = useOperationalDemo();
+  const visible = (outcome: OperationalOutcome) =>
+    scope === "whole" ||
+    outcome.memberIds.includes(currentMember.id) ||
+    outcome.participantIds.includes(currentMember.id);
+  return (
+    <div className="px-5 py-5 sm:px-7">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold">Project stages</h2>
+          <p className="mt-1 text-[0.68rem] text-muted-foreground">
+            {scope === "mine"
+              ? "Showing outcomes assigned to or joined by you."
+              : "Showing the complete project outcome board."}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented value={scope} onChange={setScope} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              onDialog({
+                kind: "outcome",
+                stageId: project.stages[0]?.id ?? "",
+              })
+            }
+            disabled={!project.stages.length}
+          >
+            <Plus /> Outcome
+          </Button>
+          <Button size="sm" onClick={() => onDialog({ kind: "stage" })}>
+            <Plus /> Stage
+          </Button>
+        </div>
+      </div>
+      <div className="project-board-scroll overflow-x-auto pb-4">
+        <div className="flex w-max min-w-full gap-3">
+          {project.stages.map((stage, index) => (
+            <section
+              key={stage.id}
+              className="min-h-[32rem] w-[20rem] shrink-0 overflow-hidden rounded-xl border border-border/80 bg-secondary"
+            >
+              <header className="border-b border-border bg-muted p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-mono text-[0.52rem] font-bold text-muted-foreground uppercase">
+                      Stage {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <h3 className="mt-1 text-sm font-semibold">{stage.name}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Rename ${stage.name}`}
+                    onClick={() => onDialog({ kind: "stage", stage })}
+                    className="rounded-lg p-2 text-muted-foreground hover:bg-card"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                </div>
+                <div className="mt-3 h-1 overflow-hidden rounded-full bg-border">
+                  <i
+                    className="block h-full bg-primary"
+                    style={{
+                      width: `${stage.outcomes.length ? Math.round(stage.outcomes.reduce((sum, item) => sum + outcomeProgress(item), 0) / stage.outcomes.length) : 0}%`,
+                    }}
+                  />
+                </div>
+              </header>
+              <div className="space-y-2.5 p-2.5">
+                {stage.outcomes.filter(visible).map((outcome) => (
+                  <OutcomeCard
+                    key={outcome.id}
+                    outcome={outcome}
+                    onOpen={() => onOpenOutcome(outcome.id)}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onDialog({ kind: "outcome", stageId: stage.id })
+                  }
+                  className="w-full rounded-xl border border-dashed border-input px-3 py-3 text-xs text-muted-foreground hover:bg-card"
+                >
+                  + Add outcome
+                </button>
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OutcomeCard({
+  outcome,
+  onOpen,
+}: {
+  outcome: OperationalOutcome;
+  onOpen: () => void;
+}) {
+  const tasks = outcome.features.flatMap((feature) => feature.tasks);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-xl border border-border/80 bg-card p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-[0.8rem] leading-5 font-semibold">
+          {outcome.title}
+        </h3>
+        <Status className={statusStyles[outcome.status]}>
+          {outcome.status}
+        </Status>
+      </div>
+      <p className="mt-2 line-clamp-2 text-[0.68rem] leading-5 text-muted-foreground">
+        {outcome.description}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {outcome.departments.map((id) => (
+          <span
+            key={id}
+            className="rounded-full bg-secondary px-2 py-1 font-mono text-[0.5rem] text-muted-foreground"
+          >
+            {departments[id].short}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 flex justify-between border-t border-border/70 pt-2 text-[0.58rem] text-muted-foreground">
+        <span>
+          {tasks.filter((task) => task.done).length}/{tasks.length} tasks
+        </span>
+        <span>{outcomeProgress(outcome)}% · Open →</span>
+      </div>
+    </button>
+  );
+}
+
+function OutcomeWorkspace({
+  project,
+  stage,
+  outcome,
+  onBack,
+}: {
+  project: OperationalProject;
+  stage: OperationalStage;
+  outcome: OperationalOutcome;
+  onBack: () => void;
+}) {
+  const actions = useOperationalDemo();
+  const [featureOpen, setFeatureOpen] = useState(false);
+  const [outputTitle, setOutputTitle] = useState(outcome.outputDraft);
+  const [outputNotes, setOutputNotes] = useState(outcome.outputNotes);
+  const [checks, setChecks] = useState(outcome.criteria.map(() => false));
+  const [feedback, setFeedback] = useState(outcome.feedback);
+  const [message, setMessage] = useState("");
+  const prerequisite = project.stages
+    .flatMap((item) => item.outcomes)
+    .find((item) => item.id === outcome.prerequisiteId);
+  const tasks = outcome.features.flatMap((feature) => feature.tasks);
+  function review(accepted: boolean) {
+    const ok = actions.reviewOutput(
+      project.id,
+      outcome.id,
+      accepted,
+      feedback,
+      checks,
+    );
+    setMessage(
+      ok
+        ? accepted
+          ? "Output accepted."
+          : "Revision requested."
+        : accepted
+          ? "Verify every acceptance criterion first."
+          : "Add revision feedback first.",
+    );
+  }
+  return (
+    <PageContainer className="pt-5 lg:pt-6">
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft /> Back to Content
+        </Button>
+        {!outcome.participantIds.includes(actions.currentMember.id) &&
+        !outcome.memberIds.includes(actions.currentMember.id) ? (
+          <Button
+            variant="outline"
+            onClick={() => actions.joinOutcome(project.id, outcome.id)}
+          >
+            <UsersRound /> Join outcome
+          </Button>
+        ) : null}
+      </div>
+      <header>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="font-mono text-[0.6rem] font-bold tracking-[.1em] text-primary uppercase">
+            {stage.name} / Outcome workspace
+          </p>
+          <Status className={statusStyles[outcome.status]}>
+            {outcome.status}
+          </Status>
+        </div>
+        <h2 className="mt-3 text-3xl font-semibold tracking-[-.04em]">
+          {outcome.title}
+        </h2>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {outcome.description}
+        </p>
+        <div className="mt-5 rounded-xl border border-border bg-secondary p-4">
+          <p className="font-mono text-[0.55rem] font-bold text-muted-foreground uppercase">
+            Acceptance criteria
+          </p>
+          <ul className="mt-2 space-y-2">
+            {outcome.criteria.map((criterion) => (
+              <li key={criterion} className="flex gap-2 text-xs">
+                <Check className="mt-0.5 size-3.5 text-primary" />
+                {criterion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </header>
+      {prerequisite ? (
+        <section className="rounded-xl border border-chart-3/20 bg-chart-3/8 p-4">
+          <h3 className="text-sm font-semibold">
+            Prerequisite: {prerequisite.title}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Current state: {prerequisite.status}. This outcome remains blocked
+            until the dependency is accepted or skipped.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => actions.skipDependency(project.id, outcome.id)}
+          >
+            Skip dependency
+          </Button>
+        </section>
+      ) : null}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <main className="space-y-5">
+          <section className="rounded-xl border border-border/80 bg-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold">My Work Plan</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Break the outcome into features and executable tasks.
+                </p>
+              </div>
+              <Button size="sm" onClick={() => setFeatureOpen(true)}>
+                <Plus /> Feature
+              </Button>
+            </div>
+            {featureOpen ? (
+              <FeatureComposer
+                onCancel={() => setFeatureOpen(false)}
+                onSubmit={(name, description) => {
+                  actions.addFeature(project.id, outcome.id, name, description);
+                  setFeatureOpen(false);
+                }}
+              />
+            ) : null}
+            <div className="mt-4 space-y-3">
+              {outcome.features.map((feature) => (
+                <FeatureCard
+                  key={feature.id}
+                  projectId={project.id}
+                  outcomeId={outcome.id}
+                  feature={feature}
+                />
+              ))}
+            </div>
+          </section>
+          <section className="rounded-xl border border-border/80 bg-card p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold">
+                  My Outputs & Feedback
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Submit evidence that the expected outcome has been achieved.
+                </p>
+              </div>
+              <Status>{outcome.submissions[0]?.state ?? "Draft"}</Status>
+            </div>
+            <div className="mt-4 grid gap-4">
+              <Field label="Output name or link">
+                <Input
+                  value={outputTitle}
+                  onChange={(event) => setOutputTitle(event.target.value)}
+                  placeholder="Build URL, pull request, document, or approval"
+                />
+              </Field>
+              <Field label="What changed / submission notes">
+                <Textarea
+                  value={outputNotes}
+                  onChange={(event) => setOutputNotes(event.target.value)}
+                />
+              </Field>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    actions.saveOutput(
+                      project.id,
+                      outcome.id,
+                      outputTitle,
+                      outputNotes,
+                    )
+                  }
+                >
+                  Save draft
+                </Button>
+                <Button
+                  disabled={!outputTitle.trim() || Boolean(prerequisite)}
+                  onClick={() =>
+                    actions.submitOutput(
+                      project.id,
+                      outcome.id,
+                      outputTitle,
+                      outputNotes,
+                    )
+                  }
+                >
+                  Submit for review
+                </Button>
+              </div>
+            </div>
+            {outcome.submissions.length ? (
+              <div className="mt-5 border-t border-border pt-4">
+                <h4 className="text-xs font-semibold">Submission history</h4>
+                <div className="mt-3 space-y-2">
+                  {outcome.submissions.map((submission) => (
+                    <article
+                      key={submission.id}
+                      className="rounded-lg bg-secondary p-3"
+                    >
+                      <div className="flex justify-between gap-3">
+                        <strong className="text-xs">
+                          v{submission.version} · {submission.title}
+                        </strong>
+                        <Status>{submission.state}</Status>
+                      </div>
+                      <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                        {submission.notes || "No notes"}
+                      </p>
+                      {submission.feedback ? (
+                        <p className="mt-2 border-l-2 border-primary pl-2 text-[0.65rem]">
+                          {submission.feedback}
+                        </p>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {outcome.submissions[0]?.state === "For review" ? (
+              <div className="mt-5 rounded-xl border border-primary/15 bg-primary/5 p-4">
+                <h4 className="text-sm font-semibold">Lead review</h4>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Verify the submitted output against every criterion.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {outcome.criteria.map((criterion, index) => (
+                    <label
+                      key={criterion}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checks[index] ?? false}
+                        onChange={(event) =>
+                          setChecks((current) =>
+                            current.map((value, itemIndex) =>
+                              itemIndex === index
+                                ? event.target.checked
+                                : value,
+                            ),
+                          )
+                        }
+                        className="mt-0.5 accent-primary"
+                      />
+                      {criterion}
+                    </label>
+                  ))}
+                </div>
+                <Field label="Review feedback">
+                  <Textarea
+                    value={feedback}
+                    onChange={(event) => setFeedback(event.target.value)}
+                  />
+                </Field>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => review(false)}>
+                    Needs revision
+                  </Button>
+                  <Button onClick={() => review(true)}>
+                    Accept verified output
+                  </Button>
+                </div>
+                {message ? (
+                  <p
+                    className="mt-2 text-xs text-muted-foreground"
+                    aria-live="polite"
+                  >
+                    {message}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+        </main>
+        <aside className="space-y-4">
+          <RailCard title="Outcome status">
+            <div className="text-center">
+              <strong className="text-3xl">{outcomeProgress(outcome)}%</strong>
+              <p className="text-[0.62rem] text-muted-foreground">
+                Work progress
+              </p>
+            </div>
+            <div className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
+              <p className="flex justify-between">
+                <span>Features</span>
+                <strong>{outcome.features.length}</strong>
+              </p>
+              <p className="flex justify-between">
+                <span>Tasks</span>
+                <strong>
+                  {tasks.filter((task) => task.done).length} / {tasks.length}
+                </strong>
+              </p>
+            </div>
+          </RailCard>
+          <RailCard title="Ownership">
+            <div className="flex flex-wrap gap-1">
+              {outcome.departments.map((id) => (
+                <Status key={id}>{departments[id].short}</Status>
+              ))}
+            </div>
+            <div className="mt-3 space-y-1 text-xs">
+              {[...outcome.memberIds, ...outcome.participantIds].map((id) => (
+                <p key={id}>
+                  {actions.state.members.find((member) => member.id === id)
+                    ?.name ?? "Unknown member"}
+                </p>
+              ))}
+            </div>
+          </RailCard>
+          {outcome.feedback ? (
+            <RailCard title="Latest feedback">
+              <p className="text-xs leading-5 text-muted-foreground">
+                {outcome.feedback}
+              </p>
+            </RailCard>
+          ) : null}
+        </aside>
+      </div>
+    </PageContainer>
+  );
+}
+
+function FeatureComposer({
+  onCancel,
+  onSubmit,
+}: {
+  onCancel: () => void;
+  onSubmit: (name: string, description: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  return (
+    <div className="mt-4 rounded-xl bg-secondary p-4">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Feature name"
+          autoFocus
+        />
+        <Input
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="Short description"
+        />
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          disabled={!name.trim()}
+          onClick={() => onSubmit(name, description)}
+        >
+          Add feature
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({
+  projectId,
+  outcomeId,
+  feature,
+}: {
+  projectId: string;
+  outcomeId: string;
+  feature: OperationalOutcome["features"][number];
+}) {
+  const actions = useOperationalDemo();
+  const [collapsed, setCollapsed] = useState(false);
+  const [task, setTask] = useState("");
+  return (
+    <article className="overflow-hidden rounded-xl border border-border bg-secondary">
+      <header className="flex items-center gap-2 p-3">
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-expanded={!collapsed}
+        >
+          <ChevronDown
+            className={cn(
+              "size-4 transition-transform",
+              collapsed && "-rotate-90",
+            )}
+          />
+        </button>
+        <div className="min-w-0 flex-1">
+          <strong className="block text-xs">{feature.name}</strong>
+          <span className="text-[0.62rem] text-muted-foreground">
+            {feature.description}
+          </span>
+        </div>
+        <button
+          type="button"
+          aria-label={`Delete ${feature.name}`}
+          onClick={() =>
+            actions.deleteFeature(projectId, outcomeId, feature.id)
+          }
+          className="p-2 text-muted-foreground"
+        >
+          <Trash2 className="size-3" />
+        </button>
+      </header>
+      {!collapsed ? (
+        <div className="border-t border-border bg-card p-3">
+          <div className="space-y-2">
+            {feature.tasks.map((item) => (
+              <div key={item.id} className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={item.done}
+                  onChange={() =>
+                    actions.toggleTask(
+                      projectId,
+                      outcomeId,
+                      feature.id,
+                      item.id,
+                    )
+                  }
+                  className="accent-primary"
+                />
+                <span
+                  className={cn(
+                    "flex-1",
+                    item.done && "text-muted-foreground line-through",
+                  )}
+                >
+                  {item.title}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Delete ${item.title}`}
+                  onClick={() =>
+                    actions.deleteTask(
+                      projectId,
+                      outcomeId,
+                      feature.id,
+                      item.id,
+                    )
+                  }
+                >
+                  <Trash2 className="size-3 text-muted-foreground" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Input
+              value={task}
+              onChange={(event) => setTask(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && task.trim()) {
+                  actions.addTask(projectId, outcomeId, feature.id, task);
+                  setTask("");
+                }
+              }}
+              placeholder="Add a task…"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!task.trim()}
+              onClick={() => {
+                actions.addTask(projectId, outcomeId, feature.id, task);
+                setTask("");
+              }}
+            >
+              Add
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function ProjectChat({ project }: { project: OperationalProject }) {
+  const actions = useOperationalDemo();
+  const [text, setText] = useState("");
+  const [announcement, setAnnouncement] = useState("");
+  const [compose, setCompose] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  return (
+    <PageContainer className="pt-5 lg:pt-6">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <section className="flex min-h-[34rem] flex-col overflow-hidden rounded-xl border border-border bg-card">
+          <header className="border-b border-border p-4">
+            <h2 className="text-sm font-semibold">{project.title}</h2>
+            <p className="text-[0.62rem] text-muted-foreground">
+              Project channel
+            </p>
+          </header>
+          <div className="flex-1 space-y-3 p-4">
+            {project.messages.map((message) => (
+              <article
+                key={message.id}
+                className="max-w-2xl rounded-xl bg-secondary p-3"
+              >
+                <strong className="text-xs">{message.author}</strong>
+                <p className="mt-1 text-xs leading-5">{message.text}</p>
+                <time className="mt-1 block font-mono text-[0.5rem] text-muted-foreground">
+                  {new Date(message.createdAt).toLocaleString()}
+                </time>
+              </article>
+            ))}
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (text.trim()) {
+                actions.sendProjectMessage(project.id, text);
+                setText("");
+              }
+            }}
+            className="flex gap-2 border-t border-border p-3"
+          >
+            <Input
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              placeholder="Message the project…"
+              aria-label="Project message"
+            />
+            <Button type="submit" disabled={!text.trim()}>
+              Send
+            </Button>
+          </form>
+        </section>
+        <aside>
+          <RailCard title="Announcements">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCompose((value) => !value)}
+            >
+              <Megaphone /> Announce
+            </Button>
+            {compose ? (
+              <div className="mt-3 space-y-2">
+                <Textarea
+                  value={announcement}
+                  onChange={(event) => setAnnouncement(event.target.value)}
+                  placeholder="Post an announcement…"
+                />
+                <label className="flex gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={pinned}
+                    onChange={(event) => setPinned(event.target.checked)}
+                  />{" "}
+                  Pin announcement
+                </label>
+                <Button
+                  size="sm"
+                  disabled={!announcement.trim()}
+                  onClick={() => {
+                    actions.postAnnouncement(project.id, announcement, pinned);
+                    setAnnouncement("");
+                    setCompose(false);
+                  }}
+                >
+                  Post
+                </Button>
+              </div>
+            ) : null}
+            <div className="mt-3 space-y-2">
+              {[...project.announcements]
+                .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+                .map((item) => (
+                  <article
+                    key={item.id}
+                    className="rounded-lg bg-secondary p-3"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        actions.toggleAnnouncement(project.id, item.id)
+                      }
+                      className="float-right text-muted-foreground"
+                      aria-label={
+                        item.pinned ? "Unpin announcement" : "Pin announcement"
+                      }
+                    >
+                      <Pin
+                        className={cn(
+                          "size-3",
+                          item.pinned && "fill-primary text-primary",
+                        )}
+                      />
+                    </button>
+                    <strong className="text-[0.65rem]">{item.author}</strong>
+                    <p className="mt-1 text-[0.65rem] leading-5">{item.text}</p>
+                  </article>
+                ))}
+            </div>
+          </RailCard>
+        </aside>
+      </div>
+    </PageContainer>
+  );
+}
+
+function ProjectActivity({
+  project,
+  onOpenOutcome,
+}: {
+  project: OperationalProject;
+  onOpenOutcome: (id: string) => void;
+}) {
+  const { state } = useOperationalDemo();
+  const [filter, setFilter] = useState("all");
+  const [member, setMember] = useState("all");
+  const entries = state.activity.filter(
+    (item) =>
+      item.projectId === project.id &&
+      (filter === "all" || item.type === filter) &&
+      (member === "all" || item.actor === member),
+  );
+  return (
+    <PageContainer className="pt-5 lg:pt-6">
+      <header>
+        <h2 className="text-2xl font-semibold">My Activity</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Project decisions and local workflow changes.
+        </p>
+      </header>
+      <div className="flex flex-wrap gap-2">
+        {["all", "output", "task", "outcome", "project", "people"].map(
+          (item) => (
+            <Button
+              key={item}
+              size="sm"
+              variant={filter === item ? "default" : "outline"}
+              onClick={() => setFilter(item)}
+              className="capitalize"
+            >
+              {item}
+            </Button>
+          ),
+        )}
+        <Select
+          value={member}
+          onChange={(event) => setMember(event.target.value)}
+          className="h-9 w-48"
+        >
+          <option value="all">All members</option>
+          {state.members.map((item) => (
+            <option key={item.id} value={item.name}>
+              {item.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <section className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {entries.length ? (
+          entries.map((item) => (
+            <article
+              key={item.id}
+              className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center"
+            >
+              <span className="grid size-8 place-items-center rounded-lg bg-secondary text-primary">
+                <FileText className="size-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs">
+                  <strong>{item.actor}</strong> · {item.action}
+                </p>
+                <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
+              {item.outcomeId ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenOutcome(item.outcomeId!)}
+                >
+                  Open outcome →
+                </Button>
+              ) : null}
+            </article>
+          ))
+        ) : (
+          <p className="p-8 text-center text-xs text-muted-foreground">
+            No matching activity.
+          </p>
+        )}
+      </section>
+    </PageContainer>
   );
 }
 
 function ProjectDialog({
   open,
   onOpenChange,
-  onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (project: CreatedProject) => void;
 }) {
+  const actions = useOperationalDemo();
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const name = String(data.get("name") ?? "").trim();
-    if (!name) return;
-    const status = String(data.get("status") ?? "Planning");
-    onSubmit({
-      name,
-      description: String(data.get("description") ?? "").trim(),
-      lead: "Rex Jumawid",
-      assistant: "Ana Mendoza",
-      state: status === "Done" ? "Completed" : "Active",
+    const title = String(data.get("title") ?? "").trim();
+    if (!title) return;
+    const selected = data.getAll("departments") as DepartmentId[];
+    actions.createProject({
+      title,
+      description: String(data.get("description") ?? ""),
+      status: String(data.get("status")) as ProjectStatus,
+      lead: String(data.get("lead") ?? "Rex Jumawid"),
+      departments: selected.length ? selected : ["rd"],
       initialStage:
-        String(data.get("initialStage") ?? "Project setup").trim() ||
-        "Project setup",
-      departments: data.getAll("departments") as DepartmentId[],
-      portfolioStatus: status as ProjectDemo["status"],
+        String(data.get("stage") ?? "Project setup") || "Project setup",
     });
     onOpenChange(false);
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent>
         <form onSubmit={submit}>
           <DialogHeader>
-            <p className="font-mono text-[0.62rem] font-bold tracking-[0.12em] text-primary uppercase">
-              Create project
-            </p>
-            <DialogTitle>New project details</DialogTitle>
+            <DialogTitle>Create project</DialogTitle>
             <DialogDescription>
-              Add a local project to the company portfolio and define its
-              starting ownership.
+              Add a local project and its initial ownership.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <FormField label="Project name">
-              <Input name="name" defaultValue="New Client Platform" />
-            </FormField>
-            <FormField label="Project description">
-              <Textarea
-                name="description"
-                defaultValue="Build a software solution based on the client's approved scope, expected outcomes, and business objectives."
-              />
-            </FormField>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Status">
-                <Select name="status" defaultValue="Planning">
+            <Field label="Project name">
+              <Input name="title" required />
+            </Field>
+            <Field label="Description">
+              <Textarea name="description" />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Status">
+                <Select name="status">
                   <option>Planning</option>
                   <option>In Progress</option>
                   <option>Done</option>
                 </Select>
-              </FormField>
-              <FormField label="Initial stage">
-                <Input name="initialStage" defaultValue="Project setup" />
-              </FormField>
+              </Field>
+              <Field label="Project lead">
+                <Input name="lead" defaultValue="Rex Jumawid" />
+              </Field>
             </div>
-            <FormField label="Departments involved">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(Object.keys(departments) as DepartmentId[]).map(
-                  (departmentId, index) => (
-                    <label
-                      key={departmentId}
-                      className="flex min-h-10 items-center gap-2.5 rounded-lg border border-border bg-muted px-3 text-xs text-foreground/75"
-                    >
-                      <input
-                        type="checkbox"
-                        name="departments"
-                        value={departmentId}
-                        defaultChecked={index === 0}
-                        className="accent-primary"
-                      />
-                      {departments[departmentId].name}
-                    </label>
-                  ),
-                )}
-              </div>
-            </FormField>
+            <Field label="Initial stage">
+              <Input name="stage" defaultValue="Project setup" />
+            </Field>
+            <DepartmentChecks />
           </div>
           <DialogFooter>
             <Button
@@ -204,71 +1335,38 @@ function ProjectDialog({
   );
 }
 
-function SettingsDialog({
-  open,
-  onOpenChange,
+function StageDialog({
   project,
-  onSubmit,
+  state,
+  onOpenChange,
 }: {
-  open: boolean;
+  project: OperationalProject;
+  state: { kind: "stage"; stage?: OperationalStage } | null;
   onOpenChange: (open: boolean) => void;
-  project: ProjectSummary;
-  onSubmit: (project: ProjectSummary) => void;
 }) {
+  const actions = useOperationalDemo();
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    onSubmit({
-      ...project,
-      name: String(data.get("name") ?? project.name).trim() || project.name,
-      lead: String(data.get("lead") ?? project.lead),
-      assistant: String(data.get("assistant") ?? project.assistant),
-      state: String(
-        data.get("state") ?? project.state,
-      ) as ProjectSummary["state"],
-    });
+    const name = String(
+      new FormData(event.currentTarget).get("name") ?? "",
+    ).trim();
+    if (!name) return;
+    if (state?.stage) actions.renameStage(project.id, state.stage.id, name);
+    else actions.addStage(project.id, name);
     onOpenChange(false);
   }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={Boolean(state)} onOpenChange={onOpenChange}>
       <DialogContent>
         <form onSubmit={submit}>
           <DialogHeader>
-            <p className="font-mono text-[0.62rem] font-bold tracking-[0.12em] text-primary uppercase">
-              Project controls
-            </p>
-            <DialogTitle>Project settings</DialogTitle>
+            <DialogTitle>
+              {state?.stage ? "Rename project stage" : "Add project stage"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4">
-            <FormField label="Project name">
-              <Input name="name" defaultValue={project.name} />
-            </FormField>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Project lead">
-                <Select name="lead" defaultValue={project.lead}>
-                  <option>Rex Jumawid</option>
-                  <option>Justin Cruz</option>
-                  <option>Bea Santos</option>
-                  <option>Marco Reyes</option>
-                </Select>
-              </FormField>
-              <FormField label="Assistant lead">
-                <Select name="assistant" defaultValue={project.assistant}>
-                  <option>None</option>
-                  <option>Ana Mendoza</option>
-                  <option>Nico Ramos</option>
-                  <option>Carlo Lim</option>
-                </Select>
-              </FormField>
-            </div>
-            <FormField label="Project state">
-              <Select name="state" defaultValue={project.state}>
-                <option>Active</option>
-                <option>Paused</option>
-                <option>Completed</option>
-              </Select>
-            </FormField>
-          </div>
+          <Field label="Stage name">
+            <Input name="name" defaultValue={state?.stage?.name} required />
+          </Field>
           <DialogFooter>
             <Button
               type="button"
@@ -277,7 +1375,9 @@ function SettingsDialog({
             >
               Cancel
             </Button>
-            <Button type="submit">Save settings</Button>
+            <Button type="submit">
+              {state?.stage ? "Save stage" : "Create stage"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -286,94 +1386,136 @@ function SettingsDialog({
 }
 
 function OutcomeDialog({
-  open,
+  project,
+  stageId,
   onOpenChange,
-  stages,
-  defaultStageId,
-  onSubmit,
 }: {
-  open: boolean;
+  project: OperationalProject;
+  stageId: string | null;
   onOpenChange: (open: boolean) => void;
-  stages: ProjectStage[];
-  defaultStageId: string;
-  onSubmit: (stageId: string, outcome: Outcome) => void;
 }) {
+  const actions = useOperationalDemo();
+  const [criteria, setCriteria] = useState([""]);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!stageId) return;
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") ?? "").trim();
-    if (!title) return;
-    onSubmit(String(data.get("stage") ?? defaultStageId), {
-      id: `outcome-${Date.now()}`,
+    const validCriteria = criteria.map((item) => item.trim()).filter(Boolean);
+    if (!title || !validCriteria.length) return;
+    const selectedDepartments = data.getAll("departments") as DepartmentId[];
+    actions.addOutcome(project.id, String(data.get("stage") ?? stageId), {
       title,
-      description:
-        String(data.get("description") ?? "").trim() ||
-        "Acceptance criteria not yet defined.",
-      state: String(data.get("state") ?? "Planned") as OutcomeState,
-      department: String(data.get("department") ?? "R&D"),
-      member: String(data.get("member") ?? "Unassigned").trim() || "Unassigned",
+      description: String(data.get("description") ?? ""),
+      departments: selectedDepartments.length ? selectedDepartments : ["rd"],
+      memberIds: data.getAll("members") as string[],
+      criteria: validCriteria,
+      prerequisiteId: String(data.get("prerequisite") ?? "") || null,
     });
+    setCriteria([""]);
     onOpenChange(false);
   }
+  const outcomes = project.stages.flatMap((stage) => stage.outcomes);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+    <Dialog open={Boolean(stageId)} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
         <form onSubmit={submit}>
           <DialogHeader>
-            <p className="font-mono text-[0.62rem] font-bold tracking-[0.12em] text-primary uppercase">
-              Project lead action
-            </p>
-            <DialogTitle>Define project outcome</DialogTitle>
+            <DialogTitle>Create outcome</DialogTitle>
             <DialogDescription>
-              Assign the expected result first. Features and tasks come after
-              the outcome exists.
+              Define the expected result, ownership, acceptance criteria, and
+              dependency.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Stage">
-                <Select name="stage" defaultValue={defaultStageId}>
-                  {stages.map((stage) => (
-                    <option key={stage.id} value={stage.id}>
-                      {stage.title}
-                    </option>
-                  ))}
-                </Select>
-              </FormField>
-              <FormField label="Owning department">
-                <Select name="department" defaultValue="Creatives">
-                  <option>R&D</option>
-                  <option>Creatives</option>
-                  <option>S&M</option>
-                </Select>
-              </FormField>
-            </div>
-            <FormField label="Outcome">
-              <Input
-                name="title"
-                placeholder="Approved responsive application prototype"
-              />
-            </FormField>
-            <FormField label="Acceptance condition">
-              <Textarea
-                name="description"
-                placeholder="What must be true for this outcome to be accepted?"
-              />
-            </FormField>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Assigned member">
-                <Input name="member" placeholder="Bea Santos" />
-              </FormField>
-              <FormField label="State">
-                <Select name="state" defaultValue="Planned">
-                  <option>Planned</option>
-                  <option>In progress</option>
-                  <option>For review</option>
-                  <option>Blocked</option>
-                  <option>Accepted</option>
-                </Select>
-              </FormField>
-            </div>
+            <Field label="Stage">
+              <Select name="stage" defaultValue={stageId ?? undefined}>
+                {project.stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Outcome">
+              <Input name="title" required />
+            </Field>
+            <Field label="Outcome description">
+              <Textarea name="description" />
+            </Field>
+            <DepartmentChecks />
+            <Field label="Members">
+              <div className="grid grid-cols-2 gap-2">
+                {actions.state.members.map((member) => (
+                  <label
+                    key={member.id}
+                    className="flex gap-2 rounded-lg bg-secondary p-2 text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      name="members"
+                      value={member.id}
+                      defaultChecked={member.id === actions.currentMember.id}
+                    />
+                    {member.name}
+                  </label>
+                ))}
+              </div>
+            </Field>
+            <Field label="Acceptance criteria">
+              <div className="space-y-2">
+                {criteria.map((criterion, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={criterion}
+                      onChange={(event) =>
+                        setCriteria((current) =>
+                          current.map((value, itemIndex) =>
+                            itemIndex === index ? event.target.value : value,
+                          ),
+                        )
+                      }
+                      placeholder={`Criterion ${index + 1}`}
+                    />
+                    {criteria.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove criterion ${index + 1}`}
+                        onClick={() =>
+                          setCriteria((current) =>
+                            current.filter(
+                              (_, itemIndex) => itemIndex !== index,
+                            ),
+                          )
+                        }
+                      >
+                        <Trash2 />
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCriteria((current) => [...current, ""])}
+              >
+                + Add criterion
+              </Button>
+            </Field>
+            <Field label="Prerequisite outcome (optional)">
+              <Select name="prerequisite" defaultValue="">
+                <option value="">None</option>
+                {outcomes.map((outcome) => (
+                  <option key={outcome.id} value={outcome.id}>
+                    {outcome.title}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </div>
           <DialogFooter>
             <Button
@@ -383,7 +1525,7 @@ function OutcomeDialog({
             >
               Cancel
             </Button>
-            <Button type="submit">Add outcome</Button>
+            <Button type="submit">Create outcome</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -391,857 +1533,101 @@ function OutcomeDialog({
   );
 }
 
-function Metadata({ label, children }: { label: string; children: ReactNode }) {
+function DepartmentChecks() {
   return (
-    <div className="min-w-36 border-r border-foreground/10 pr-5 last:border-r-0">
-      <p className="mb-1.5 font-mono text-[0.58rem] font-bold tracking-[0.1em] text-muted-foreground uppercase">
-        {label}
-      </p>
-      <div className="flex min-h-6 items-center gap-2 text-xs font-semibold text-foreground">
-        {children}
+    <Field label="Departments">
+      <div className="grid grid-cols-2 gap-2">
+        {(Object.keys(departments) as DepartmentId[]).map((id) => (
+          <label
+            key={id}
+            className="flex gap-2 rounded-lg bg-secondary p-2 text-xs"
+          >
+            <input
+              type="checkbox"
+              name="departments"
+              value={id}
+              defaultChecked={id === "rd"}
+            />
+            {departments[id].name}
+          </label>
+        ))}
       </div>
+    </Field>
+  );
+}
+function Segmented({
+  value,
+  onChange,
+}: {
+  value: "mine" | "whole";
+  onChange: (value: "mine" | "whole") => void;
+}) {
+  return (
+    <div
+      className="flex rounded-lg bg-secondary p-1"
+      aria-label="Content board scope"
+    >
+      {(
+        [
+          ["mine", "My Work"],
+          ["whole", "Whole Work"],
+        ] as const
+      ).map(([key, label]) => (
+        <Button
+          key={key}
+          size="sm"
+          variant={value === key ? "secondary" : "ghost"}
+          onClick={() => onChange(key)}
+        >
+          {label}
+        </Button>
+      ))}
     </div>
   );
 }
-
-function OutcomeCard({
-  outcome,
-  onOpen,
-}: {
-  outcome: Outcome;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group w-full rounded-xl border border-border/80 bg-card p-3.5 text-left shadow-[0_3px_10px_rgba(55,39,31,0.035)] transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-input hover:shadow-[0_8px_22px_rgba(44,31,25,0.07)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[0.82rem] leading-5 font-semibold tracking-[-0.01em] text-foreground">
-          {outcome.title}
-        </h3>
-        <span
-          className={cn(
-            "shrink-0 rounded-full border px-2 py-1 font-mono text-[0.52rem] font-bold tracking-[0.04em] uppercase",
-            stateStyles[outcome.state],
-          )}
-        >
-          {outcome.state}
-        </span>
-      </div>
-      <p className="mt-2 text-[0.69rem] leading-5 text-muted-foreground">
-        {outcome.description}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <span
-          className={cn(
-            "rounded-full border px-2 py-1 font-mono text-[0.54rem] font-semibold",
-            departmentStyles[outcome.department] ??
-              "border-border bg-muted text-muted-foreground",
-          )}
-        >
-          {outcome.department}
-        </span>
-        <span className="rounded-full border border-border bg-muted px-2 py-1 font-mono text-[0.54rem] text-muted-foreground">
-          {outcome.member}
-        </span>
-      </div>
-      {outcome.dependency ? (
-        <div className="mt-3 border-l-2 border-chart-3 bg-chart-3/10 px-2.5 py-2 text-[0.63rem] leading-4 text-chart-3">
-          <strong className="block font-semibold">Dependency</strong>
-          {outcome.dependency}
-        </div>
-      ) : null}
-      {outcome.tasks || outcome.features ? (
-        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5">
-          <div>
-            <p className="font-mono text-[0.5rem] font-bold tracking-[0.08em] text-muted-foreground uppercase">
-              Tasks
-            </p>
-            <p className="mt-1 text-[0.63rem] text-foreground/75">
-              {outcome.tasks ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="font-mono text-[0.5rem] font-bold tracking-[0.08em] text-muted-foreground uppercase">
-              Features
-            </p>
-            <p className="mt-1 text-[0.63rem] text-foreground/75">
-              {outcome.features ?? "—"}
-            </p>
-          </div>
-        </div>
-      ) : null}
-      {outcome.output ? (
-        <div className="mt-3 rounded-lg border border-primary/15 bg-primary/5 px-2.5 py-2">
-          <p className="font-mono text-[0.5rem] font-bold tracking-[0.08em] text-primary-strong uppercase">
-            Current output
-          </p>
-          <p className="mt-1 text-[0.64rem] font-medium text-foreground/75">
-            {outcome.output}
-          </p>
-        </div>
-      ) : null}
-      <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2.5 font-mono text-[0.5rem] text-muted-foreground">
-        <span>Updated recently</span>
-        <span className="flex items-center gap-0.5 font-sans text-[0.62rem] font-semibold text-primary">
-          Inspect <ChevronRight className="size-3" />
-        </span>
-      </div>
-    </button>
-  );
-}
-
-function StageColumn({
-  stage,
-  onOpenOutcome,
-  onAddOutcome,
-}: {
-  stage: ProjectStage;
-  onOpenOutcome: (id: string) => void;
-  onAddOutcome: (stageId: string) => void;
-}) {
-  return (
-    <section className="min-h-[590px] w-[20rem] shrink-0 overflow-hidden rounded-xl border border-border/80 bg-secondary shadow-[0_4px_15px_rgba(55,39,31,0.025)]">
-      <header className="border-b border-border/80 bg-muted px-4 py-3.5">
-        <p className="font-mono text-[0.55rem] font-bold tracking-[0.1em] text-muted-foreground uppercase">
-          Stage {stage.number}
-        </p>
-        <div className="mt-1.5 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold tracking-[-0.015em] text-foreground">
-            {stage.title}
-          </h2>
-          <span className="rounded-full border border-border bg-secondary px-2 py-0.5 font-mono text-[0.52rem] text-muted-foreground">
-            {stage.outcomes.length} outcomes
-          </span>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-border">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${stage.progress}%` }}
-            />
-          </div>
-          <span className="font-mono text-[0.5rem] text-muted-foreground">
-            {stage.progress}%
-          </span>
-        </div>
-      </header>
-      <div className="flex flex-col gap-2.5 p-2.5">
-        {stage.outcomes.map((outcome) => (
-          <OutcomeCard
-            key={outcome.id}
-            outcome={outcome}
-            onOpen={() => onOpenOutcome(outcome.id)}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => onAddOutcome(stage.id)}
-          className="w-full rounded-xl border border-dashed border-input px-3 py-2.5 text-[0.65rem] font-medium text-muted-foreground transition-colors hover:border-muted-foreground hover:bg-card/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          + Add outcome to stage
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function InspectorSection({
-  label,
+function Status({
   children,
+  className,
 }: {
-  label: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="border-b border-foreground/10 px-5 py-5 last:border-b-0">
-      <p className="mb-2.5 font-mono text-[0.58rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">
+    <span
+      className={cn(
+        "inline-flex shrink-0 rounded-full border border-border bg-muted px-2 py-1 font-mono text-[0.52rem] font-bold text-muted-foreground",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+function Meta({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-card p-3">
+      <p className="font-mono text-[0.52rem] font-bold text-muted-foreground uppercase">
         {label}
       </p>
+      <div className="mt-2 text-xs font-semibold">{children}</div>
+    </div>
+  );
+}
+function RailCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-xl border border-border bg-card p-4">
+      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       {children}
     </section>
   );
 }
-
-function ProjectLanding({
-  projects,
-  onOpen,
-  onCreate,
-}: {
-  projects: ProjectDemo[];
-  onOpen: (project: ProjectDemo) => void;
-  onCreate: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [collapsed, setCollapsed] = useState<Set<ProjectDemo["status"]>>(
-    new Set(),
-  );
-  const filtered = projects.filter((project) =>
-    `${project.title} ${project.description} ${project.status} ${project.departments.map((id) => departments[id].name).join(" ")}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
-  const groups = ["Planning", "In Progress", "Done"] as const;
-
-  function toggleGroup(group: ProjectDemo["status"]) {
-    setCollapsed((current) => {
-      const next = new Set(current);
-      if (next.has(group)) next.delete(group);
-      else next.add(group);
-      return next;
-    });
-  }
-
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="relative min-h-svh pb-12">
-      <WorkspaceToolbar section="Workspace" current="Projects" />
-      <div className="px-5 pt-5 sm:px-7 lg:px-8">
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex w-full max-w-[26rem] items-center gap-2 rounded-xl border border-border/80 bg-muted px-3 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/15">
-            <Search className="size-4 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search projects…"
-              aria-label="Search projects"
-              className="h-10 min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-            />
-          </label>
-          <Button onClick={onCreate}>
-            <Plus /> Add project
-          </Button>
-        </div>
-
-        <div className="space-y-1.5">
-          {groups.map((group) => {
-            const items = filtered.filter(
-              (project) => project.status === group,
-            );
-            const isCollapsed = collapsed.has(group);
-            return (
-              <section key={group} aria-labelledby={`project-group-${group}`}>
-                <button
-                  type="button"
-                  aria-expanded={!isCollapsed}
-                  onClick={() => toggleGroup(group)}
-                  className="flex min-h-11 w-full items-center gap-2.5 rounded-xl bg-secondary px-3.5 text-left transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <ChevronRight
-                    className={cn(
-                      "size-3 text-foreground/70 transition-transform",
-                      !isCollapsed && "rotate-90",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "relative size-4 rounded-full",
-                      group === "Planning" &&
-                        "border-2 border-muted-foreground/45",
-                      group === "In Progress" &&
-                        "border-[4px] border-primary border-r-border border-b-border",
-                      group === "Done" &&
-                        "grid place-items-center bg-chart-4 text-[0.55rem] text-white after:content-['✓']",
-                    )}
-                  />
-                  <h2
-                    id={`project-group-${group}`}
-                    className="text-xs font-semibold"
-                  >
-                    {group}
-                  </h2>
-                  <span className="font-mono text-[0.6rem] text-muted-foreground">
-                    {items.length}
-                  </span>
-                </button>
-
-                {!isCollapsed ? (
-                  <div className="pt-2 pr-1 pb-1 pl-7">
-                    {items.length ? (
-                      <div className="flex snap-x gap-3 overflow-x-auto pb-2">
-                        {items.map((project) => (
-                          <ProjectPortfolioCard
-                            key={project.id}
-                            project={project}
-                            onOpen={() => onOpen(project)}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="grid min-h-20 place-items-center rounded-xl border border-dashed border-border bg-secondary/65 px-4 text-center text-xs text-muted-foreground">
-                        No {group.toLowerCase()} projects yet.
-                      </p>
-                    )}
-                  </div>
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProjectPortfolioCard({
-  project,
-  onOpen,
-}: {
-  project: ProjectDemo;
-  onOpen: () => void;
-}) {
-  return (
-    <article className="relative flex min-h-[15rem] w-[21.25rem] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border/80 bg-card p-3.5 shadow-[0_5px_16px_rgba(55,39,31,.03)] transition hover:-translate-y-0.5 hover:border-input hover:shadow-[0_10px_25px_rgba(55,39,31,.055)]">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 bg-primary/5"
-        style={{ width: `${project.progress}%` }}
-      />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <p className="font-mono text-[0.52rem] font-bold tracking-[.1em] text-muted-foreground uppercase">
-            {project.id === "cms" ? "Primary workspace" : "Company project"}
-          </p>
-          <h3 className="mt-1.5 text-sm font-semibold tracking-tight">
-            {project.title}
-          </h3>
-        </div>
-        <span className="rounded-full border border-border bg-muted px-2 py-1 font-mono text-[0.52rem] font-bold text-muted-foreground uppercase">
-          {project.status}
-        </span>
-      </div>
-      <p className="relative mt-2.5 line-clamp-2 min-h-10 text-[0.68rem] leading-5 text-muted-foreground">
-        {project.description}
-      </p>
-
-      <div className="relative mt-3 rounded-xl border border-border/75 bg-muted/80 p-3">
-        <div className="flex items-center justify-between font-mono text-[0.54rem] font-bold uppercase">
-          <span className="text-muted-foreground">
-            Overall project progress
-          </span>
-          <strong className="text-primary-strong">{project.progress}%</strong>
-        </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
-          <div
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${project.progress}%` }}
-          />
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-border/70 bg-secondary px-2.5 py-2">
-            <p className="font-mono text-[0.48rem] font-bold text-muted-foreground uppercase">
-              Open outcomes
-            </p>
-            <strong className="mt-1 block text-[0.65rem]">
-              {project.openOutcomes} / {project.totalOutcomes} outcomes
-            </strong>
-          </div>
-          <div className="rounded-lg border border-border/70 bg-secondary px-2.5 py-2">
-            <p className="font-mono text-[0.48rem] font-bold text-muted-foreground uppercase">
-              Active stages
-            </p>
-            <strong className="mt-1 block text-[0.65rem]">
-              {project.stages.length} stages
-            </strong>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative mt-2.5 flex flex-wrap gap-1">
-        {project.departments.map((id) => (
-          <span
-            key={id}
-            className="rounded-full border border-border bg-muted px-2 py-1 font-mono text-[0.5rem] text-muted-foreground"
-          >
-            {departments[id].short}
-          </span>
-        ))}
-      </div>
-      <div className="relative mt-2 flex min-h-5 flex-wrap gap-1">
-        {project.workers.length ? (
-          project.workers.map((worker) => (
-            <span
-              key={worker}
-              className="inline-flex items-center gap-1 rounded-full bg-chart-4/10 px-2 py-1 font-mono text-[0.5rem] text-chart-4"
-            >
-              <i className="size-1 rounded-full bg-chart-4" /> {worker}
-            </span>
-          ))
-        ) : (
-          <span className="font-mono text-[0.52rem] text-muted-foreground">
-            No one currently working on this project
-          </span>
-        )}
-      </div>
-      <p className="relative mt-2 truncate text-[0.58rem] text-muted-foreground">
-        <strong className="text-foreground/65">Current:</strong>{" "}
-        {project.stages.slice(0, 2).join(" · ") || "No open stage work"}
-      </p>
-      <div className="relative mt-auto flex items-center justify-between border-t border-border/70 pt-2.5">
-        <span className="text-[0.56rem] text-muted-foreground">
-          {project.departments.length} departments involved
-        </span>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="text-[0.65rem] font-semibold text-primary hover:text-primary-strong"
-        >
-          Open workspace →
-        </button>
-      </div>
-    </article>
-  );
-}
-
-export function ProjectBoard() {
-  const [showLanding, setShowLanding] = useState(true);
-  const [createdProjects, setCreatedProjects] = useState<ProjectDemo[]>([]);
-  const [project, setProject] = useState<ProjectSummary>(demoProject);
-  const [stages, setStages] = useState<ProjectStage[]>(demoStages);
-  const [dialog, setDialog] = useState<DialogName>(null);
-  const [selectedOutcomeId, setSelectedOutcomeId] = useState<string | null>(
-    null,
-  );
-  const [reviewVisible, setReviewVisible] = useState(false);
-  const [outcomeStageId, setOutcomeStageId] = useState(demoStages[0]?.id ?? "");
-  const [quickOpen, setQuickOpen] = useState(false);
-  const outcomes = useMemo(
-    () => stages.flatMap((stage) => stage.outcomes),
-    [stages],
-  );
-  const acceptedCount = outcomes.filter(
-    (outcome) => outcome.state === "Accepted",
-  ).length;
-  const selectedOutcome = outcomes.find(
-    (outcome) => outcome.id === selectedOutcomeId,
-  );
-
-  function addStage() {
-    const number = stages.length + 1;
-    setStages((current) => [
-      ...current,
-      {
-        id: `stage-${Date.now()}`,
-        number: String(number).padStart(2, "0"),
-        title: `New Stage ${number}`,
-        progress: 0,
-        outcomes: [],
-      },
-    ]);
-  }
-  function addOutcome(stageId: string, outcome: Outcome) {
-    setStages((current) =>
-      current.map((stage) =>
-        stage.id === stageId
-          ? recalculateStage({
-              ...stage,
-              outcomes: [...stage.outcomes, outcome],
-            })
-          : stage,
-      ),
-    );
-  }
-  function openOutcomeDialog(stageId: string) {
-    setOutcomeStageId(stageId);
-    setDialog("outcome");
-  }
-  function acceptSelectedOutcome() {
-    if (!selectedOutcomeId) return;
-    setStages((current) =>
-      current.map((stage) =>
-        recalculateStage({
-          ...stage,
-          outcomes: stage.outcomes.map((outcome) =>
-            outcome.id === selectedOutcomeId
-              ? { ...outcome, state: "Accepted" }
-              : outcome,
-          ),
-        }),
-      ),
-    );
-    setReviewVisible(false);
-  }
-
-  function openCatalogProject(catalogProject: ProjectDemo) {
-    setProject({
-      name: catalogProject.title,
-      description: catalogProject.description,
-      lead:
-        catalogProject.id === "customers" ? "Rex Jumawid" : demoProject.lead,
-      assistant: demoProject.assistant,
-      state: catalogProject.status === "Done" ? "Completed" : "Active",
-    });
-    setStages(
-      catalogProject.id === "cms"
-        ? demoStages
-        : catalogProject.stages.map((title, index) => ({
-            id: `${catalogProject.id}-stage-${index}`,
-            number: String(index + 1).padStart(2, "0"),
-            title,
-            progress: catalogProject.progress,
-            outcomes: [
-              {
-                id: `${catalogProject.id}-outcome-${index}`,
-                title:
-                  index === 0
-                    ? `${title} outcome`
-                    : `Complete ${title.toLowerCase()}`,
-                description: `Deliver and verify the expected result for ${title.toLowerCase()}.`,
-                state:
-                  catalogProject.status === "Done"
-                    ? "Accepted"
-                    : index === 0
-                      ? "In progress"
-                      : "Planned",
-                department:
-                  departments[
-                    catalogProject.departments[
-                      index % catalogProject.departments.length
-                    ]!
-                  ].short,
-                member:
-                  catalogProject.workers[
-                    index % Math.max(catalogProject.workers.length, 1)
-                  ] ?? "Unassigned",
-              },
-            ],
-          })),
-    );
-    setShowLanding(false);
-  }
-
-  if (showLanding) {
-    return (
-      <>
-        <ProjectLanding
-          projects={[...projectCatalog, ...createdProjects]}
-          onOpen={openCatalogProject}
-          onCreate={() => setDialog("project")}
-        />
-        <ProjectDialog
-          open={dialog === "project"}
-          onOpenChange={(open) => setDialog(open ? "project" : null)}
-          onSubmit={(createdProject) => {
-            const selectedDepartments = createdProject.departments.length
-              ? createdProject.departments
-              : (["rd"] as DepartmentId[]);
-            setCreatedProjects((current) => [
-              ...current,
-              {
-                id: `project-${Date.now()}`,
-                title: createdProject.name,
-                description: createdProject.description,
-                status: createdProject.portfolioStatus,
-                progress: createdProject.state === "Completed" ? 100 : 0,
-                openOutcomes: createdProject.state === "Completed" ? 0 : 1,
-                totalOutcomes: 1,
-                stages: [createdProject.initialStage],
-                departments: selectedDepartments,
-                workers: [],
-              },
-            ]);
-          }}
-        />
-      </>
-    );
-  }
-
-  return (
-    <div className="relative min-h-svh pb-12">
-      <WorkspaceToolbar
-        section="Projects"
-        current={project.name}
-        actions={
-          <>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="rounded-xl bg-transparent text-foreground/80 hover:bg-card/30"
-              onClick={() => setShowLanding(true)}
-            >
-              <ArrowLeft /> All projects
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="rounded-xl bg-transparent text-foreground/80 hover:bg-card/30"
-              onClick={() => setDialog("settings")}
-            >
-              <Settings2 /> Project settings
-            </Button>
-            <Button
-              size="lg"
-              className="rounded-xl"
-              onClick={() => setDialog("project")}
-            >
-              <Plus /> New project
-            </Button>
-          </>
-        }
-      />
-
-      <header className="border-b border-foreground/10 bg-transparent px-5 pt-8 pb-6 sm:px-7 lg:px-7 lg:pt-7">
-        <p className="font-mono text-[0.62rem] font-bold tracking-[0.13em] text-primary uppercase">
-          Project workspace / outcome board
-        </p>
-        <h1 className="mt-2.5 text-3xl font-semibold tracking-[-0.045em] text-foreground sm:text-[2.45rem] sm:leading-[1.05]">
-          {project.name}
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {project.description}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-y-4">
-          <Metadata label="Project lead">
-            <span className="flex size-6 items-center justify-center rounded-full border border-border bg-secondary font-mono text-[0.5rem] text-muted-foreground">
-              {getInitials(project.lead)}
-            </span>
-            {project.lead}
-          </Metadata>
-          <Metadata label="Assistant lead">
-            <span className="flex size-6 items-center justify-center rounded-full border border-border bg-secondary font-mono text-[0.5rem] text-muted-foreground">
-              {getInitials(project.assistant)}
-            </span>
-            {project.assistant}
-          </Metadata>
-          <Metadata label="Project state">
-            <span className="size-1.5 rounded-full bg-primary ring-3 ring-primary/10" />
-            {project.state}
-          </Metadata>
-          <Metadata label="Outcome progress">
-            {acceptedCount} accepted / {outcomes.length} total
-          </Metadata>
-        </div>
-      </header>
-
-      <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-3 sm:px-7">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Project stages
-          </h2>
-          <p className="mt-1 text-[0.69rem] text-muted-foreground">
-            Each column is a stage. Each card is an outcome the project must
-            produce.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openOutcomeDialog(stages[0]?.id ?? "")}
-          >
-            <Plus /> Outcome
-          </Button>
-          <Button size="sm" onClick={addStage}>
-            <Plus /> Stage
-          </Button>
-        </div>
-      </div>
-
-      <div className="project-board-scroll overflow-x-auto px-5 pb-3 sm:px-7">
-        <div className="flex w-max min-w-full items-start gap-3.5 pb-3">
-          {stages.map((stage) => (
-            <StageColumn
-              key={stage.id}
-              stage={stage}
-              onOpenOutcome={(id) => {
-                setSelectedOutcomeId(id);
-                setReviewVisible(false);
-              }}
-              onAddOutcome={openOutcomeDialog}
-            />
-          ))}
-          <button
-            type="button"
-            onClick={addStage}
-            className="grid min-h-32 w-[20rem] shrink-0 place-items-center rounded-xl border border-dashed border-input bg-card/55 p-5 text-xs font-medium text-muted-foreground transition-colors hover:bg-card/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            + Add another stage
-          </button>
-        </div>
-      </div>
-      <p className="px-5 pt-1 font-mono text-[0.54rem] leading-4 tracking-[0.04em] text-muted-foreground uppercase sm:px-7">
-        Project → Stage → Outcome → Department → Member → Features / Tasks →
-        Output → Lead review
-      </p>
-
-      <div className="fixed right-4 bottom-4 z-30 sm:right-6 sm:bottom-6">
-        <LiquidGlass
-          kind="control"
-          renderKey={quickOpen ? "open" : "closed"}
-          className="rounded-[1.15rem] border border-white/80"
-          contentClassName="flex items-center gap-1 p-1.5"
-        >
-          {quickOpen ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  addStage();
-                  setQuickOpen(false);
-                }}
-                className="rounded-xl px-3 py-2 text-xs font-semibold text-foreground/80 hover:bg-card/35"
-              >
-                + Stage
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  openOutcomeDialog(stages[0]?.id ?? "");
-                  setQuickOpen(false);
-                }}
-                className="rounded-xl px-3 py-2 text-xs font-semibold text-foreground/80 hover:bg-card/35"
-              >
-                + Outcome
-              </button>
-            </>
-          ) : null}
-          <button
-            type="button"
-            aria-label={
-              quickOpen ? "Close quick actions" : "Open quick actions"
-            }
-            aria-expanded={quickOpen}
-            onClick={() => setQuickOpen((value) => !value)}
-            className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_7px_17px_rgba(169,63,28,.16)] transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-          >
-            {quickOpen ? <X className="size-4" /> : <Plus className="size-4" />}
-          </button>
-        </LiquidGlass>
-      </div>
-
-      <ProjectDialog
-        open={dialog === "project"}
-        onOpenChange={(open) => setDialog(open ? "project" : null)}
-        onSubmit={(createdProject) =>
-          setProject({
-            name: createdProject.name,
-            description: createdProject.description,
-            lead: createdProject.lead,
-            assistant: createdProject.assistant,
-            state: createdProject.state,
-          })
-        }
-      />
-      <SettingsDialog
-        open={dialog === "settings"}
-        onOpenChange={(open) => setDialog(open ? "settings" : null)}
-        project={project}
-        onSubmit={setProject}
-      />
-      <OutcomeDialog
-        open={dialog === "outcome"}
-        onOpenChange={(open) => setDialog(open ? "outcome" : null)}
-        stages={stages}
-        defaultStageId={outcomeStageId}
-        onSubmit={addOutcome}
-      />
-
-      <InspectorDrawer
-        open={Boolean(selectedOutcome)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedOutcomeId(null);
-            setReviewVisible(false);
-          }
-        }}
-        title={selectedOutcome?.title ?? "Outcome details"}
-        eyebrow={
-          selectedOutcome ? `Outcome / ${selectedOutcome.state}` : "Outcome"
-        }
-      >
-        {selectedOutcome ? (
-          <>
-            <InspectorSection label="Expected outcome">
-              <p className="text-sm leading-6 text-muted-foreground">
-                {selectedOutcome.description}
-              </p>
-            </InspectorSection>
-            <InspectorSection label="Ownership">
-              <div className="flex flex-wrap gap-2">
-                <span
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 font-mono text-[0.6rem] font-semibold",
-                    departmentStyles[selectedOutcome.department] ??
-                      "border-border bg-muted text-muted-foreground",
-                  )}
-                >
-                  {selectedOutcome.department}
-                </span>
-                <span className="rounded-full border border-border bg-card/70 px-2.5 py-1 font-mono text-[0.6rem] text-muted-foreground">
-                  {selectedOutcome.member}
-                </span>
-              </div>
-            </InspectorSection>
-            <InspectorSection label="Features defined by assignee">
-              <div className="divide-y divide-foreground/8 text-xs text-foreground/75">
-                {[
-                  "Dashboard shell and responsive layout",
-                  "Live KPI data states",
-                ].map((feature) => (
-                  <div
-                    key={feature}
-                    className="flex items-center justify-between gap-4 py-2.5"
-                  >
-                    <span>{feature}</span>
-                    <Check className="size-3.5 text-primary" />
-                  </div>
-                ))}
-                <div className="flex items-center justify-between gap-4 py-2.5">
-                  <span>Client activity timeline</span>
-                  <CircleDot className="size-3.5 text-muted-foreground" />
-                </div>
-              </div>
-            </InspectorSection>
-            <InspectorSection label="Current output">
-              <div className="rounded-xl border border-border bg-card/55 p-3.5">
-                <div className="flex items-start gap-3">
-                  <FileText className="mt-0.5 size-4 text-primary" />
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">
-                      {selectedOutcome.output ?? "No output submitted"}
-                    </p>
-                    <p className="mt-1 text-[0.66rem] leading-5 text-muted-foreground">
-                      Output preview remains a placeholder until project
-                      artifacts are connected.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!selectedOutcome.output}
-                >
-                  Open output
-                </Button>
-                <Button size="sm" onClick={() => setReviewVisible(true)}>
-                  Compare with outcome
-                </Button>
-              </div>
-            </InspectorSection>
-            {reviewVisible ? (
-              <InspectorSection label="Lead comparison">
-                <div className="rounded-xl border border-primary/15 bg-primary/5 p-3.5">
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Verify every acceptance condition before accepting the
-                    outcome. Task count alone is not evidence of completion.
-                  </p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm">
-                    Request revision
-                  </Button>
-                  <Button size="sm" onClick={acceptSelectedOutcome}>
-                    Accept outcome
-                  </Button>
-                </div>
-              </InspectorSection>
-            ) : null}
-          </>
-        ) : null}
-      </InspectorDrawer>
+    <div className="mt-3 space-y-1.5">
+      <Label className="font-mono text-[0.56rem] font-bold tracking-[.06em] text-muted-foreground uppercase">
+        {label}
+      </Label>
+      {children}
     </div>
   );
 }

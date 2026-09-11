@@ -6,6 +6,8 @@ import Image from "next/image";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { Input } from "@/components/ui/input";
+
 import {
   prometheusLoginSchema,
   type PrometheusLoginInput,
@@ -78,7 +80,7 @@ export function PrometheusLogin({
           >
             <div className={styles.field}>
               <label htmlFor="email">COMPANY EMAIL</label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 placeholder="name@company.com"
@@ -98,7 +100,7 @@ export function PrometheusLogin({
             <div className={styles.field}>
               <label htmlFor="password">PASSWORD</label>
               <div className={styles.inputWrap}>
-                <input
+                <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
