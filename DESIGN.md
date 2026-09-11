@@ -11,7 +11,7 @@ The interface should feel calm enough for daily operational use. Liquid Glass is
 ## 1. Design principles
 
 1. **Information before effects.** A user should understand the page, state, owner, next action, and blockers before noticing the glass treatment.
-2. **Glass belongs to the UI layer.** Use it for navigation, floating toolbars, compact floating controls, and inspectors. Do not make normal content cards, tables, forms, or stage columns liquid.
+2. **Glass belongs to the UI layer.** Use it for navigation, floating toolbars, compact floating controls, inspectors, and the single approved opaque data-surface shell. Do not make normal content cards, forms, stage columns, table rows, or table cells liquid.
 3. **One continuous canvas.** The background scene spans behind the application. Do not add white fades, page-wide glass bars, or a colored slab behind page headers.
 4. **Warm, technical, restrained.** Prometheus orange is the primary accent. Warm paper neutrals are the default surfaces. Blue/purple neon gradients are outside the system.
 5. **Avoid glass-on-glass.** A glass element must not contain another independently refracting glass element.
@@ -22,13 +22,13 @@ The interface should feel calm enough for daily operational use. Liquid Glass is
 
 Use the following hierarchy when deciding what a component should look like.
 
-| Layer   | Purpose                               | Material                 | Examples                         |
-| ------- | ------------------------------------- | ------------------------ | -------------------------------- |
-| Canvas  | Environmental depth                   | Editorial gradient scene | App background                   |
-| Content | Work users read/edit                  | Solid warm surfaces      | Cards, tables, stages, forms     |
-| Chrome  | Navigation and controls above content | Liquid Glass             | Sidebar, floating toolbar island |
-| Focus   | Temporary contextual work             | Hard Liquid Glass        | Right inspector drawer           |
-| Modal   | Blocking task                         | Solid elevated surface   | Create/edit dialogs              |
+| Layer   | Purpose                               | Material                 | Examples                            |
+| ------- | ------------------------------------- | ------------------------ | ----------------------------------- |
+| Canvas  | Environmental depth                   | Editorial gradient scene | App background                      |
+| Content | Work users read/edit                  | Solid warm surfaces      | Cards, table content, stages, forms |
+| Chrome  | Navigation and controls above content | Liquid Glass             | Sidebar, floating toolbar island    |
+| Focus   | Temporary contextual work             | Opaque warm Liquid Glass | Drawers, popups, and toasts         |
+| Modal   | Blocking task                         | Opaque warm Liquid Glass | Create/edit dialogs                 |
 
 If a component does not clearly belong to Chrome or Focus, it should normally **not** use Liquid Glass.
 
@@ -88,14 +88,32 @@ The engine creates a rounded-rectangle signed-distance-field lens, derives surfa
 
 Do not duplicate or fork the engine inside a feature.
 
+Every preset uses the same mandatory three-layer DOM contract:
+
+```tsx
+<div className="liquid-glass">
+  <div className="liquid-glass__optics" aria-hidden="true" />
+  <div className="liquid-glass__content">{children}</div>
+</div>
+```
+
+- The root establishes positioning, isolation, the outer white rim, and shadow. Its background stays transparent.
+- `.liquid-glass__optics` is an absolute, radius-clipped, pointer-events-free background layer. SVG displacement, backdrop filtering, tint, and generated specular highlights belong only here.
+- `.liquid-glass__content` is normal DOM content above the optics. It must stay transparent and must never receive `filter`, `backdrop-filter`, tint, or refraction.
+- Put flex/grid alignment and padding on `contentClassName`; keep size, radius, border, shadow, and overflow on the glass root.
+- Do not add translucent white/card fills to the glass root or content wrapper. Interactive child controls may still use their normal explicit hover/pressed surfaces. Hardened overlays may use stronger tint in their optics layer, but their content remains sharp.
+
+This separation is non-negotiable: the glass bends the editorial canvas behind it, never its own text, icons, buttons, or child surfaces.
+
 ### Presets
 
-`LiquidGlass` supports four sanctioned material kinds:
+`LiquidGlass` supports five sanctioned material kinds:
 
 - `navigation` — persistent sidebar or navigation island;
 - `toolbar` — compact floating breadcrumb/action groups;
 - `control` — small temporary controls such as quick actions;
-- `inspector` — large contextual drawer with harder, more opaque glass.
+- `data` — large, light, highly opaque data surfaces such as the shared table shell;
+- `overlay` — drawers, popups, dialogs, and toasts using the same warm hue with a more opaque tint and weaker refraction.
 
 Use the existing preset instead of passing one-off optical values from feature code. Changing a preset changes the design system and should be reviewed globally.
 
@@ -107,15 +125,15 @@ Use Liquid Glass for:
 - compact mobile navigation chrome;
 - floating breadcrumb or action islands;
 - small floating quick-action clusters;
-- right-hand inspector drawers.
+- one bounded data surface through the shared `data` preset;
+- drawers, popups, dialogs, and toasts through the shared `overlay` preset.
 
 Do **not** use Liquid Glass for:
 
 - cards;
-- tables;
+- individual table rows or cells;
 - stage/kanban columns;
 - forms and form fields;
-- dialogs/modals;
 - status pills;
 - alerts;
 - nested panels inside a drawer;
@@ -123,7 +141,7 @@ Do **not** use Liquid Glass for:
 
 ### Performance
 
-Refraction maps are generated per glass instance. Keep the number of simultaneous instances small. Prefer one sidebar, up to two toolbar islands, one quick-action cluster, and one inspector. Never wrap a repeated list item in `LiquidGlass`.
+Refraction maps are generated per glass instance. Keep the number of simultaneous instances small. Prefer one sidebar, up to two toolbar islands, one quick-action cluster, one data surface, and only the currently visible overlays. Never wrap a repeated list item in `LiquidGlass`.
 
 ## 6. Application shell
 
@@ -132,7 +150,9 @@ Refraction maps are generated per glass instance. Keep the number of simultaneou
 Desktop behavior:
 
 - floating sidebar with outer page breathing room;
+- sticky viewport positioning so page content scrolls independently;
 - approximately 252 px shell allocation;
+- an animated compact state that keeps navigation and account actions available as icons;
 - sidebar radius around 30 px;
 - brand at the top, grouped navigation in the middle, account control at the bottom;
 - no page-wide glass top bar.
@@ -140,7 +160,7 @@ Desktop behavior:
 Mobile behavior:
 
 - compact floating glass header;
-- navigation opens into a solid popover/card;
+- navigation opens into the opaque warm `overlay` glass preset;
 - content is never obscured by a permanently open sidebar.
 
 ### Adding a navigation item
@@ -252,13 +272,11 @@ Use `src/components/ui/dialog.tsx` for blocking create/edit/confirm tasks.
 
 Dialogs use:
 
-- solid warm-white surface;
+- highly opaque warm Liquid Glass;
 - dim backdrop;
 - clear title and optional description;
 - footer actions ordered secondary → primary;
-- no Liquid Glass.
-
-Reason: a modal is a focused task surface, not navigation chrome. Making it refractive reduces form legibility.
+- weak refraction so form content stays legible.
 
 ## 14. Inspector drawer
 
@@ -270,8 +288,9 @@ Reference behavior:
 - floating margin from viewport edges;
 - maximum width about 480 px;
 - radius about 32 px;
-- `inspector` Liquid Glass preset;
+- warm `overlay` Liquid Glass preset;
 - high tint/opacity with weaker refraction than toolbar glass;
+- normal foreground and semantic colors with strong contrast;
 - section dividers inside the drawer are solid/transparent content, not nested glass;
 - use an inspector for read/compare/review workflows, not for long multi-step forms.
 
@@ -279,11 +298,11 @@ Use a normal Dialog instead when the user must complete a focused form before re
 
 ## 15. Tables
 
-Use `AppDataTable` for searchable, sortable, paginated business records. Keep tables on solid surfaces. Do not create a glass data table.
+Use `AppDataTable` for searchable, sortable, paginated business records. Its single outer shell may use the sanctioned opaque `data` glass preset; headers, rows, and cells remain readable content layers and must never become separate glass instances.
 
 Feature code owns columns, filters, URL state, and row actions. The shared table owns the visual pattern.
 
-## 16. Empty, loading, and error states
+## 16. Empty, loading, error, and toast states
 
 Reuse:
 
@@ -292,7 +311,11 @@ Reuse:
 - `ErrorState`
 - `ConfirmationDialog`
 
+Build loading compositions from the shared `Skeleton` primitive. Use its restrained sheen animation, keep repeated content placeholders on solid surfaces, and use Liquid Glass only where the resolved interface also uses glass chrome.
+
 Do not create another visual family for a feature unless its behavior cannot be represented by the shared component.
+
+Use the shared Shadcn/Sonner `Toaster` for transient feedback. Toasts appear at the bottom-right without a separate close control and use the same highly opaque warm glass color as other overlays.
 
 ## 17. Typography
 
@@ -452,7 +475,7 @@ Do not add:
 
 - glass cards in a list;
 - a full-page frosted overlay;
-- a glass table;
+- per-row/per-cell glass or a feature-local glass table implementation;
 - nested glass;
 - blue/purple neon blobs unrelated to the Prometheus palette;
 - a white gradient hiding the background at the top of the page;
@@ -471,8 +494,8 @@ The `/projects` route is the reference for the intended hierarchy:
 - compact Liquid Glass project toolbar islands;
 - transparent project header;
 - solid stage columns and outcome cards;
-- solid create/edit dialogs;
-- hard Liquid Glass right-hand inspector;
+- opaque warm Liquid Glass create/edit dialogs;
+- opaque warm Liquid Glass right-hand inspector;
 - Liquid Glass quick-action cluster.
 
 When a future screen conflicts with this reference, preserve usability and product semantics first, then update this document if the design-system rule itself needs to change.

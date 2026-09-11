@@ -603,7 +603,8 @@ export function ProjectBoard() {
         <LiquidGlass
           kind="toolbar"
           renderKey={project.name}
-          className="pointer-events-auto flex h-12 min-w-56 items-center rounded-[1.15rem] border border-white/80 px-4"
+          className="pointer-events-auto h-12 min-w-56 rounded-[1.15rem] border border-white/80"
+          contentClassName="flex h-full items-center px-4"
         >
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>Projects</span>
@@ -616,7 +617,8 @@ export function ProjectBoard() {
         <LiquidGlass
           kind="toolbar"
           renderKey={`actions-${project.name}`}
-          className="pointer-events-auto flex h-12 items-center gap-1 rounded-[1.15rem] border border-white/80 p-1"
+          className="pointer-events-auto h-12 rounded-[1.15rem] border border-white/80"
+          contentClassName="flex h-full items-center gap-1 p-1"
         >
           <Button
             variant="ghost"
@@ -724,7 +726,8 @@ export function ProjectBoard() {
         <LiquidGlass
           kind="control"
           renderKey={quickOpen ? "open" : "closed"}
-          className="flex items-center gap-1 rounded-[1.15rem] border border-white/80 p-1.5"
+          className="rounded-[1.15rem] border border-white/80"
+          contentClassName="flex items-center gap-1 p-1.5"
         >
           {quickOpen ? (
             <>
@@ -795,7 +798,6 @@ export function ProjectBoard() {
         eyebrow={
           selectedOutcome ? `Outcome / ${selectedOutcome.state}` : "Outcome"
         }
-        renderKey={`${selectedOutcome?.id ?? "none"}-${selectedOutcome?.state ?? "none"}-${reviewVisible}`}
       >
         {selectedOutcome ? (
           <>

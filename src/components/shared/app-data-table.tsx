@@ -80,19 +80,19 @@ export function AppDataTable<TData>({
 
   return (
     <LiquidGlass
-      kind="inspector"
+      kind="data"
       renderKey={`${pageIndex}-${pageSize}-${totalRows}`}
-      className="overflow-hidden rounded-[1.25rem] border border-white/85 bg-background/25 shadow-[0_14px_38px_rgba(55,39,31,0.07)]"
+      className="overflow-hidden rounded-[1.25rem] border border-white/85 shadow-[0_14px_38px_rgba(55,39,31,0.07)]"
       role="region"
       aria-label="Data table"
     >
       {toolbar ? (
-        <CardHeader className="border-b border-foreground/10 bg-background/62 px-4 py-4 sm:px-4 sm:pt-4">
+        <CardHeader className="border-b border-foreground/10 px-4 py-4 sm:px-4 sm:pt-4">
           {toolbar}
         </CardHeader>
       ) : null}
 
-      <CardContent className="bg-card/68 px-0 pb-0 sm:px-0 sm:pb-0">
+      <CardContent className="px-0 pb-0 sm:px-0 sm:pb-0">
         {data.length === 0 ? (
           <div className="px-6 py-8">
             <EmptyState title={emptyTitle} description={emptyDescription} />
@@ -154,7 +154,7 @@ export function AppDataTable<TData>({
         )}
       </CardContent>
 
-      <CardFooter className="flex-col gap-3 border-t border-foreground/10 bg-background/62 px-4 py-3 font-mono text-[0.62rem] text-muted-foreground sm:flex-row sm:justify-between sm:px-4 sm:pb-3">
+      <CardFooter className="flex-col gap-3 border-t border-foreground/10 px-4 py-3 font-mono text-[0.62rem] text-muted-foreground sm:flex-row sm:justify-between sm:px-4 sm:pb-3">
         <p>
           {totalRows === 0
             ? "0 records"

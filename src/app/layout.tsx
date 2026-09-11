@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { appConfig } from "@/config/app";
+import { Toaster } from "@/components/ui/sonner";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,10 @@ export default function RootLayout({
       )}
       data-scroll-behavior="smooth"
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

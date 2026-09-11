@@ -2,17 +2,11 @@
 
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
 
-import {
-  LiquidGlassEngine,
-  type LiquidGlassOptions,
-} from "@/lib/liquid-glass";
+import { LiquidGlassEngine, type LiquidGlassOptions } from "@/lib/liquid-glass";
 import { cn } from "@/lib/utils";
 
 export type LiquidGlassKind =
-  | "navigation"
-  | "toolbar"
-  | "control"
-  | "inspector";
+  "navigation" | "toolbar" | "control" | "data" | "overlay";
 
 const presets: Record<LiquidGlassKind, Partial<LiquidGlassOptions>> = {
   navigation: {
@@ -33,7 +27,11 @@ const presets: Record<LiquidGlassKind, Partial<LiquidGlassOptions>> = {
     blur: 0.75,
     saturation: 1.16,
     tint: "rgba(255,252,249,.34)",
-    specular: { intensity: 0.57, shininess: 30, lightDir: [-0.45, -0.72, 0.52] },
+    specular: {
+      intensity: 0.57,
+      shininess: 30,
+      lightDir: [-0.45, -0.72, 0.52],
+    },
   },
   control: {
     bezelWidth: 14,
@@ -43,22 +41,41 @@ const presets: Record<LiquidGlassKind, Partial<LiquidGlassOptions>> = {
     blur: 0.55,
     saturation: 1.22,
     tint: "rgba(255,252,249,.26)",
-    specular: { intensity: 0.67, shininess: 26, lightDir: [-0.45, -0.72, 0.52] },
+    specular: {
+      intensity: 0.67,
+      shininess: 26,
+      lightDir: [-0.45, -0.72, 0.52],
+    },
   },
-  inspector: {
+  data: {
     bezelWidth: 14,
     depth: 8,
     ior: 1.37,
     profile: "smooth",
-    blur: 0.45,
+    blur: 0.55,
     saturation: 1.06,
-    tint: "rgba(249,246,242,.82)",
+    tint: "rgba(249,246,242,.78)",
     specular: { intensity: 0.3, shininess: 34, lightDir: [-0.45, -0.72, 0.52] },
+  },
+  overlay: {
+    bezelWidth: 14,
+    depth: 8,
+    ior: 1.37,
+    profile: "smooth",
+    blur: 0.65,
+    saturation: 1.04,
+    tint: "rgba(249,246,242,.92)",
+    specular: {
+      intensity: 0.24,
+      shininess: 38,
+      lightDir: [-0.45, -0.72, 0.52],
+    },
   },
 };
 
 interface LiquidGlassProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
+  contentClassName?: string;
   kind?: LiquidGlassKind;
   renderKey?: string | number;
 }
@@ -66,19 +83,20 @@ interface LiquidGlassProps extends HTMLAttributes<HTMLDivElement> {
 export function LiquidGlass({
   children,
   className,
+  contentClassName,
   kind = "navigation",
   renderKey,
   ...props
 }: LiquidGlassProps) {
-  const elementRef = useRef<HTMLDivElement>(null);
+  const opticsRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<LiquidGlassEngine | null>(null);
 
   useEffect(() => {
-    if (!elementRef.current) return;
+    if (!opticsRef.current) return;
 
     const options = presets[kind];
     if (!engineRef.current) {
-      engineRef.current = new LiquidGlassEngine(elementRef.current, options);
+      engineRef.current = new LiquidGlassEngine(opticsRef.current, options);
     } else {
       engineRef.current.setOptions(options);
     }
@@ -90,12 +108,15 @@ export function LiquidGlass({
   }, [kind, renderKey]);
 
   return (
-    <div
-      ref={elementRef}
-      className={cn("liquid-glass", className)}
-      {...props}
-    >
-      {children}
+    <div className={cn("liquid-glass", className)} {...props}>
+      <div
+        ref={opticsRef}
+        className="liquid-glass__optics"
+        aria-hidden="true"
+      />
+      <div className={cn("liquid-glass__content", contentClassName)}>
+        {children}
+      </div>
     </div>
   );
 }

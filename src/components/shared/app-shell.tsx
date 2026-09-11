@@ -8,6 +8,8 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelsTopLeft,
   Settings,
   UsersRound,
@@ -15,11 +17,10 @@ import {
 import { Liquid } from "liquid-gooey";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { appConfig } from "@/config/app";
 import { signOutAction } from "@/features/auth/actions";
 import type { CurrentUser } from "@/features/auth/queries";
@@ -57,16 +58,26 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-function Brand() {
+function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       href="/dashboard"
-      className="flex min-w-0 items-center gap-2.5 text-sidebar-foreground"
+      className={cn(
+        "flex min-w-0 items-center text-sidebar-foreground",
+        compact ? "justify-center gap-0" : "gap-2.5",
+      )}
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-card/35 font-mono text-[0.7rem] font-bold tracking-tight text-primary shadow-[inset_0_1px_0_rgba(255,255,255,.9)]">
         {appConfig.logo.mark}
       </span>
-      <span className="min-w-0 leading-tight">
+      <span
+        className={cn(
+          "min-w-0 leading-tight transition-[opacity,width] duration-200",
+          compact
+            ? "hidden w-0 overflow-hidden opacity-0"
+            : "w-auto opacity-100",
+        )}
+      >
         <span className="block truncate text-sm font-semibold tracking-tight">
           {appConfig.name}
         </span>
@@ -81,20 +92,34 @@ function Brand() {
 function NavigationGroup({
   label,
   items,
+  compact = false,
 }: {
   label: string;
   items: ReadonlyArray<NavigationItem>;
+  compact?: boolean;
 }) {
   const pathname = usePathname();
+  const [pendingNavigation, setPendingNavigation] = useState<{
+    from: string;
+    target: string;
+  } | null>(null);
+  const visualPathname =
+    pendingNavigation?.from === pathname ? pendingNavigation.target : pathname;
+
   const activeIndex = items.findIndex(
     (item) =>
-      pathname === item.href ||
-      (item.href !== "/dashboard" && pathname.startsWith(item.href)),
+      visualPathname === item.href ||
+      (item.href !== "/dashboard" && visualPathname.startsWith(item.href)),
   );
 
   return (
     <div>
-      <p className="mb-2 px-3 font-mono text-[0.58rem] font-bold tracking-[0.14em] text-sidebar-foreground/45 uppercase">
+      <p
+        className={cn(
+          "mb-2 px-3 font-mono text-[0.58rem] font-bold tracking-[0.14em] text-sidebar-foreground/45 uppercase",
+          compact && "sr-only",
+        )}
+      >
         {label}
       </p>
       <Liquid
@@ -110,10 +135,10 @@ function NavigationGroup({
           <Liquid.Item
             effect="move"
             move={{
-              springiness: 0.58,
-              wobble: 0.18,
-              stretch: 0.24,
-              trail: 0.42,
+              springiness: 0.82,
+              wobble: 0.08,
+              stretch: 0.14,
+              trail: 0.24,
             }}
           >
             <span
@@ -126,17 +151,23 @@ function NavigationGroup({
 
         {items.map((item) => {
           const active =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            visualPathname === item.href ||
+            (item.href !== "/dashboard" &&
+              visualPathname.startsWith(item.href));
           const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
+              onNavigate={() =>
+                setPendingNavigation({ from: pathname, target: item.href })
+              }
               aria-current={active ? "page" : undefined}
+              title={compact ? item.label : undefined}
               className={cn(
                 "group relative z-10 flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/65 transition-colors duration-150 hover:bg-card/30 hover:text-sidebar-foreground",
+                compact && "justify-center px-0",
                 active && "text-sidebar-foreground",
               )}
             >
@@ -147,7 +178,9 @@ function NavigationGroup({
                   active && "text-primary",
                 )}
               />
-              {item.label}
+              <span className={compact ? "sr-only" : undefined}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
@@ -168,16 +201,20 @@ function getInitials(fullName: string) {
 function UserSummary({
   user,
   showChevron = false,
+  compact = false,
 }: {
   user: CurrentUser;
   showChevron?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/9 font-mono text-[0.65rem] font-semibold text-primary ring-1 ring-primary/12">
         {getInitials(user.fullName)}
       </span>
-      <span className="min-w-0 flex-1 leading-tight">
+      <span
+        className={cn("min-w-0 flex-1 leading-tight", compact && "sr-only")}
+      >
         <span className="block truncate text-sm font-medium text-sidebar-foreground">
           {user.fullName}
         </span>
@@ -185,7 +222,7 @@ function UserSummary({
           {user.role} account
         </span>
       </span>
-      {showChevron ? (
+      {showChevron && !compact ? (
         <ChevronUp className="size-4 shrink-0 text-sidebar-foreground/40 transition-transform group-open:rotate-180" />
       ) : null}
     </div>
@@ -212,38 +249,52 @@ function AccountLinks() {
 
 function AccountCard({ user }: { user: CurrentUser }) {
   return (
-    <Card className="w-full overflow-hidden border-border bg-popover text-popover-foreground shadow-xl shadow-foreground/10">
-      <CardContent className="p-2 sm:p-2">
-        <div className="flex items-center gap-3 rounded-lg bg-muted/70 p-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary font-mono text-xs font-semibold text-primary-foreground">
-            {getInitials(user.fullName)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{user.fullName}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-          <Badge className="capitalize" variant="secondary">
-            {user.role}
-          </Badge>
+    <LiquidGlass
+      kind="overlay"
+      className="overlay-glass w-full overflow-hidden rounded-xl shadow-xl shadow-foreground/10"
+      contentClassName="p-2 text-popover-foreground"
+    >
+      <div className="flex items-center gap-3 rounded-lg bg-muted/70 p-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary font-mono text-xs font-semibold text-primary-foreground">
+          {getInitials(user.fullName)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{user.fullName}</p>
+          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
         </div>
-        <AccountLinks />
-      </CardContent>
-    </Card>
+        <Badge className="capitalize" variant="secondary">
+          {user.role}
+        </Badge>
+      </div>
+      <AccountLinks />
+    </LiquidGlass>
   );
 }
 
-function SidebarAccount({ user }: { user: CurrentUser }) {
+function SidebarAccount({
+  user,
+  compact,
+}: {
+  user: CurrentUser;
+  compact: boolean;
+}) {
   return (
     <details className="group relative">
       <summary
         aria-label="Open account menu"
-        className="list-none rounded-xl p-2 transition-colors hover:bg-card/28 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
+        className={cn(
+          "list-none rounded-xl p-2 transition-colors hover:bg-card/28 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+          compact && "flex justify-center px-0",
+        )}
       >
-        <UserSummary user={user} showChevron />
+        <UserSummary user={user} showChevron compact={compact} />
       </summary>
-      <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-40">
+      <div
+        className={cn(
+          "absolute bottom-[calc(100%+0.5rem)] z-40",
+          compact ? "left-[calc(100%+0.5rem)] w-72" : "right-0 left-0",
+        )}
+      >
         <AccountCard user={user} />
       </div>
     </details>
@@ -251,30 +302,70 @@ function SidebarAccount({ user }: { user: CurrentUser }) {
 }
 
 export function AppShell({ user, children }: AppShellProps) {
-  const pathname = usePathname();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="relative min-h-svh overflow-x-hidden bg-background">
+    <div className="relative min-h-svh overflow-x-clip bg-background">
       <div className="app-scene" aria-hidden="true" />
 
-      <div className="relative z-10 lg:grid lg:grid-cols-[15.75rem_minmax(0,1fr)]">
-        <aside className="sticky top-0 hidden h-svh p-3 pr-2 lg:flex">
+      <div
+        className={cn(
+          "relative z-10 transition-[grid-template-columns] duration-200 ease-out lg:grid",
+          sidebarCollapsed
+            ? "lg:grid-cols-[5rem_minmax(0,1fr)]"
+            : "lg:grid-cols-[15.75rem_minmax(0,1fr)]",
+        )}
+      >
+        <aside className="sticky top-0 hidden h-svh min-w-0 self-start p-3 pr-2 lg:flex">
           <LiquidGlass
             kind="navigation"
-            renderKey={pathname}
-            className="flex h-full w-full flex-col overflow-visible! rounded-[1.9rem] border border-white/80 px-3.5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,.93),0_16px_38px_rgba(55,39,31,.075)]"
+            className="h-full w-full overflow-visible! rounded-[1.9rem] border border-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,.93),0_16px_38px_rgba(55,39,31,.075)]"
+            contentClassName={cn(
+              "flex h-full flex-col py-4 transition-[padding] duration-200",
+              sidebarCollapsed ? "px-2" : "px-3.5",
+            )}
           >
-            <div className="border-b border-foreground/10 px-1 pb-4">
-              <Brand />
+            <div
+              className={cn(
+                "flex border-b border-foreground/10 px-1 pb-4",
+                sidebarCollapsed
+                  ? "flex-col items-center gap-2"
+                  : "items-center justify-between gap-2",
+              )}
+            >
+              <Brand compact={sidebarCollapsed} />
+              <button
+                type="button"
+                aria-label={
+                  sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                }
+                aria-expanded={!sidebarCollapsed}
+                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/55 transition-colors hover:bg-card/35 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="size-4" />
+                ) : (
+                  <PanelLeftClose className="size-4" />
+                )}
+              </button>
             </div>
 
             <div className="flex-1 space-y-6 overflow-y-auto pt-5">
-              <NavigationGroup label="Workspace" items={workspaceNavigation} />
-              <NavigationGroup label="Personal" items={personalNavigation} />
+              <NavigationGroup
+                label="Workspace"
+                items={workspaceNavigation}
+                compact={sidebarCollapsed}
+              />
+              <NavigationGroup
+                label="Personal"
+                items={personalNavigation}
+                compact={sidebarCollapsed}
+              />
             </div>
 
             <div className="border-t border-foreground/10 pt-3">
-              <SidebarAccount user={user} />
+              <SidebarAccount user={user} compact={sidebarCollapsed} />
             </div>
           </LiquidGlass>
         </aside>
@@ -283,8 +374,8 @@ export function AppShell({ user, children }: AppShellProps) {
           <header className="sticky top-0 z-30 p-2.5 lg:hidden">
             <LiquidGlass
               kind="toolbar"
-              renderKey={`mobile-${pathname}`}
-              className="flex h-14 items-center justify-between rounded-2xl border border-white/80 px-3.5"
+              className="h-14 rounded-2xl border border-white/80"
+              contentClassName="flex h-full items-center justify-between px-3.5"
             >
               <Brand />
               <details className="group relative">
@@ -293,7 +384,11 @@ export function AppShell({ user, children }: AppShellProps) {
                   <Menu className="size-4" />
                 </summary>
                 <div className="absolute top-[calc(100%+0.75rem)] right-0 w-72">
-                  <Card className="border-border bg-popover p-2 text-popover-foreground shadow-xl shadow-foreground/10">
+                  <LiquidGlass
+                    kind="overlay"
+                    className="overlay-glass overflow-hidden rounded-xl shadow-xl shadow-foreground/10"
+                    contentClassName="p-2 text-popover-foreground"
+                  >
                     <div className="mb-3 px-2 py-1">
                       <UserSummary user={user} />
                     </div>
@@ -308,7 +403,7 @@ export function AppShell({ user, children }: AppShellProps) {
                       />
                     </div>
                     <AccountLinks />
-                  </Card>
+                  </LiquidGlass>
                 </div>
               </details>
             </LiquidGlass>

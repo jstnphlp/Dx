@@ -6,6 +6,7 @@ import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { PageContainer } from "@/components/shared/page-container";
 import { PageHeader } from "@/components/shared/page-header";
 import { WorkspaceToolbar } from "@/components/shared/workspace-toolbar";
+import { ToastSimulator } from "@/components/shared/toast-simulator";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,21 +60,24 @@ export default async function DashboardPage() {
           title={`Good day, ${user.fullName.split(" ")[0]}.`}
           description="A clear view of customer activity and the records that need attention."
           action={
-            <Link href="/customers" className={buttonVariants()}>
-              Manage customers <ArrowRight />
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <ToastSimulator />
+              <Link href="/customers" className={buttonVariants()}>
+                Manage customers <ArrowRight />
+              </Link>
+            </div>
           }
         />
 
         <LiquidGlass
-          kind="inspector"
+          kind="data"
           renderKey={`overview-${summary.total}-${recent.length}`}
-          className="overflow-hidden rounded-[1.25rem] border border-white/85 bg-background/25 shadow-[0_14px_38px_rgba(55,39,31,0.07)]"
+          className="overflow-hidden rounded-[1.25rem] border border-white/85 shadow-[0_14px_38px_rgba(55,39,31,0.07)]"
           role="region"
           aria-label="Customer overview"
         >
           <section aria-labelledby="customer-summary-title">
-            <CardHeader className="border-b border-foreground/10 bg-background/62 px-4 py-4 sm:px-4 sm:pt-4">
+            <CardHeader className="border-b border-foreground/10 px-4 py-4 sm:px-4 sm:pt-4">
               <CardTitle id="customer-summary-title" className="text-base">
                 Customer summary
               </CardTitle>
@@ -81,7 +85,7 @@ export default async function DashboardPage() {
                 Current status across all customer records.
               </p>
             </CardHeader>
-            <CardContent className="grid bg-card/68 p-0 sm:grid-cols-2 sm:p-0 lg:grid-cols-4">
+            <CardContent className="grid p-0 sm:grid-cols-2 sm:p-0 lg:grid-cols-4">
               {metrics.map(([label, value]) => (
                 <div
                   key={label}
@@ -99,7 +103,7 @@ export default async function DashboardPage() {
           </section>
 
           <section aria-labelledby="recent-customers-title">
-            <CardHeader className="flex-row items-start justify-between gap-4 border-y border-foreground/10 bg-background/62 px-4 py-4 sm:px-4 sm:pt-4">
+            <CardHeader className="flex-row items-start justify-between gap-4 border-y border-foreground/10 px-4 py-4 sm:px-4 sm:pt-4">
               <div>
                 <CardTitle id="recent-customers-title" className="text-base">
                   Recently added
@@ -116,7 +120,7 @@ export default async function DashboardPage() {
               </Link>
             </CardHeader>
 
-            <CardContent className="bg-card/68 p-0 sm:p-0">
+            <CardContent className="p-0 sm:p-0">
               {recent.length ? (
                 <div className="divide-y">
                   {recent.map((customer) => (

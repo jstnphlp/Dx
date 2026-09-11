@@ -14,7 +14,6 @@ interface InspectorDrawerProps {
   eyebrow?: string;
   children: ReactNode;
   className?: string;
-  renderKey?: string | number;
 }
 
 export function InspectorDrawer({
@@ -24,7 +23,6 @@ export function InspectorDrawer({
   eyebrow,
   children,
   className,
-  renderKey,
 }: InspectorDrawerProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -38,9 +36,9 @@ export function InspectorDrawer({
             )}
           >
             <LiquidGlass
-              kind="inspector"
-              renderKey={renderKey}
-              className="h-full overflow-y-auto rounded-[2rem] border border-white/90 shadow-[0_22px_56px_rgba(44,31,25,.13)]"
+              kind="overlay"
+              className="overlay-glass h-full overflow-hidden rounded-[2rem] shadow-[0_24px_64px_rgba(55,39,31,.14)]"
+              contentClassName="h-full overflow-y-auto"
             >
               <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-foreground/10 bg-background/94 px-5 py-5">
                 <div className="min-w-0">

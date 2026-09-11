@@ -3,6 +3,7 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { useState, useTransition, type ReactElement } from "react";
 
+import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { Button } from "@/components/ui/button";
 
 interface ConfirmationDialogProps {
@@ -36,27 +37,33 @@ export function ConfirmationDialog({
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 z-40 min-h-dvh bg-foreground/25 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <AlertDialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <AlertDialog.Popup className="w-full max-w-md rounded-xl border bg-card p-6 shadow-[0_24px_70px_rgba(44,31,25,0.18)] transition-[transform,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
-            <AlertDialog.Title className="text-lg font-semibold tracking-tight">
-              {title}
-            </AlertDialog.Title>
-            <AlertDialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
-              {description}
-            </AlertDialog.Description>
-            <div className="mt-6 flex justify-end gap-2">
-              <AlertDialog.Close
-                render={<Button variant="outline" disabled={isPending} />}
-              >
-                Cancel
-              </AlertDialog.Close>
-              <Button
-                variant="destructive"
-                disabled={isPending}
-                onClick={confirm}
-              >
-                {isPending ? "Working…" : confirmLabel}
-              </Button>
-            </div>
+          <AlertDialog.Popup className="w-full max-w-md transition-[transform,opacity] duration-150 outline-none data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
+            <LiquidGlass
+              kind="overlay"
+              className="overlay-glass overflow-hidden rounded-xl shadow-[0_24px_70px_rgba(44,31,25,0.14)]"
+              contentClassName="p-6"
+            >
+              <AlertDialog.Title className="text-lg font-semibold tracking-tight">
+                {title}
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
+                {description}
+              </AlertDialog.Description>
+              <div className="mt-6 flex justify-end gap-2">
+                <AlertDialog.Close
+                  render={<Button variant="outline" disabled={isPending} />}
+                >
+                  Cancel
+                </AlertDialog.Close>
+                <Button
+                  variant="destructive"
+                  disabled={isPending}
+                  onClick={confirm}
+                >
+                  {isPending ? "Working…" : confirmLabel}
+                </Button>
+              </div>
+            </LiquidGlass>
           </AlertDialog.Popup>
         </AlertDialog.Viewport>
       </AlertDialog.Portal>

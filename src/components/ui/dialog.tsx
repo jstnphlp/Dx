@@ -3,6 +3,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 
+import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
@@ -22,18 +23,24 @@ function DialogContent({
       <DialogPrimitive.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <DialogPrimitive.Popup
           className={cn(
-            "relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl border bg-card p-6 shadow-[0_24px_70px_rgba(44,31,25,0.18)] transition-[transform,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0",
+            "relative w-full max-w-lg transition-[transform,opacity] duration-150 outline-none data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0",
             className,
           )}
           {...props}
         >
-          {children}
-          <DialogPrimitive.Close
-            aria-label="Close dialog"
-            className="absolute top-4 right-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          <LiquidGlass
+            kind="overlay"
+            className="overlay-glass max-h-[calc(100dvh-2rem)] overflow-hidden rounded-xl shadow-[0_24px_70px_rgba(44,31,25,0.14)]"
+            contentClassName="max-h-[calc(100dvh-2rem)] overflow-y-auto p-6"
           >
-            <X className="size-4" />
-          </DialogPrimitive.Close>
+            {children}
+            <DialogPrimitive.Close
+              aria-label="Close dialog"
+              className="absolute top-4 right-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <X className="size-4" />
+            </DialogPrimitive.Close>
+          </LiquidGlass>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Viewport>
     </DialogPrimitive.Portal>
