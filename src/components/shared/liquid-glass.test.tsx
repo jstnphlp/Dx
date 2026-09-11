@@ -8,14 +8,16 @@ import {
 
 const engine = vi.hoisted(() => ({
   targets: [] as HTMLElement[],
+  options: [] as unknown[],
   destroy: vi.fn(),
   setOptions: vi.fn(),
 }));
 
 vi.mock("@/lib/liquid-glass", () => ({
   LiquidGlassEngine: class {
-    constructor(target: HTMLElement) {
+    constructor(target: HTMLElement, options: unknown) {
       engine.targets.push(target);
+      engine.options.push(options);
     }
 
     destroy() {
@@ -30,6 +32,7 @@ vi.mock("@/lib/liquid-glass", () => ({
 
 afterEach(() => {
   engine.targets.length = 0;
+  engine.options.length = 0;
   vi.clearAllMocks();
 });
 
@@ -38,7 +41,6 @@ describe("LiquidGlass", () => {
     "navigation",
     "toolbar",
     "control",
-    "data",
     "overlay",
   ] satisfies LiquidGlassKind[];
 
@@ -64,5 +66,29 @@ describe("LiquidGlass", () => {
     expect(content).toContainElement(child);
     expect(optics).not.toContainElement(child);
     expect(engine.targets).toEqual([optics]);
+  });
+
+  it("keeps the toolbar material transparent and lightly refractive", () => {
+    render(<LiquidGlass kind="toolbar">Toolbar</LiquidGlass>);
+
+    expect(engine.options[0]).toEqual(
+      expect.objectContaining({
+        depth: 9,
+        tint: "rgba(255,252,249,.22)",
+      }),
+    );
+  });
+
+  it("uses the same transparent warm tint for navigation glass", () => {
+    render(<LiquidGlass kind="navigation">Navigation</LiquidGlass>);
+
+    expect(engine.options[0]).toEqual(
+      expect.objectContaining({
+        bezelWidth: 8,
+        depth: 7,
+        profile: "smooth",
+        tint: "rgba(255,252,249,.22)",
+      }),
+    );
   });
 });

@@ -22,10 +22,10 @@ export function WorkspaceToolbar({
       <LiquidGlass
         kind="toolbar"
         renderKey={renderKey}
-        className="pointer-events-auto h-12 min-w-56 rounded-[1.15rem] border border-white/80"
-        contentClassName="flex h-full items-center px-4"
+        className="glass-capsule pointer-events-auto h-12 w-fit shrink-0"
+        contentClassName="flex h-full items-center px-5"
       >
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground">
           <span>{section}</span>
           <span className="text-muted-foreground/55">/</span>
           <strong className="font-semibold text-foreground">{current}</strong>

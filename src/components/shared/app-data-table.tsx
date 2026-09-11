@@ -17,7 +17,6 @@ import {
 import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/shared/empty-state";
-import { LiquidGlass } from "@/components/shared/liquid-glass";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -79,13 +78,7 @@ export function AppDataTable<TData>({
   });
 
   return (
-    <LiquidGlass
-      kind="data"
-      renderKey={`${pageIndex}-${pageSize}-${totalRows}`}
-      className="overflow-hidden rounded-[1.25rem] border border-white/85 shadow-[0_14px_38px_rgba(55,39,31,0.07)]"
-      role="region"
-      aria-label="Data table"
-    >
+    <section className="ledger-surface" role="region" aria-label="Data table">
       {toolbar ? (
         <CardHeader className="border-b border-foreground/10 px-4 py-4 sm:px-4 sm:pt-4">
           {toolbar}
@@ -202,6 +195,6 @@ export function AppDataTable<TData>({
           </Button>
         </div>
       </CardFooter>
-    </LiquidGlass>
+    </section>
   );
 }

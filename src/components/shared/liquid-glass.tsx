@@ -5,31 +5,34 @@ import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
 import { LiquidGlassEngine, type LiquidGlassOptions } from "@/lib/liquid-glass";
 import { cn } from "@/lib/utils";
 
-export type LiquidGlassKind =
-  "navigation" | "toolbar" | "control" | "data" | "overlay";
+export type LiquidGlassKind = "navigation" | "toolbar" | "control" | "overlay";
 
 const presets: Record<LiquidGlassKind, Partial<LiquidGlassOptions>> = {
   navigation: {
-    bezelWidth: 18,
-    depth: 13,
-    ior: 1.42,
-    profile: "lens",
-    blur: 1.05,
-    saturation: 1.16,
-    tint: "rgba(255,252,249,.43)",
-    specular: { intensity: 0.5, shininess: 30, lightDir: [-0.45, -0.72, 0.52] },
+    bezelWidth: 8,
+    depth: 7,
+    ior: 1.36,
+    profile: "smooth",
+    blur: 0.65,
+    saturation: 1.1,
+    tint: "rgba(255,252,249,.22)",
+    specular: {
+      intensity: 0.24,
+      shininess: 38,
+      lightDir: [-0.45, -0.72, 0.52],
+    },
   },
   toolbar: {
     bezelWidth: 15,
-    depth: 12,
-    ior: 1.42,
+    depth: 9,
+    ior: 1.39,
     profile: "smooth",
-    blur: 0.75,
-    saturation: 1.16,
-    tint: "rgba(255,252,249,.34)",
+    blur: 0.65,
+    saturation: 1.1,
+    tint: "rgba(255,252,249,.22)",
     specular: {
-      intensity: 0.57,
-      shininess: 30,
+      intensity: 0.42,
+      shininess: 34,
       lightDir: [-0.45, -0.72, 0.52],
     },
   },
@@ -46,16 +49,6 @@ const presets: Record<LiquidGlassKind, Partial<LiquidGlassOptions>> = {
       shininess: 26,
       lightDir: [-0.45, -0.72, 0.52],
     },
-  },
-  data: {
-    bezelWidth: 14,
-    depth: 8,
-    ior: 1.37,
-    profile: "smooth",
-    blur: 0.55,
-    saturation: 1.06,
-    tint: "rgba(249,246,242,.78)",
-    specular: { intensity: 0.3, shininess: 34, lightDir: [-0.45, -0.72, 0.52] },
   },
   overlay: {
     bezelWidth: 14,

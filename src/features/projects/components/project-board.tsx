@@ -13,6 +13,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 
 import { InspectorDrawer } from "@/components/shared/inspector-drawer";
 import { LiquidGlass } from "@/components/shared/liquid-glass";
+import { WorkspaceToolbar } from "@/components/shared/workspace-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -599,44 +600,29 @@ export function ProjectBoard() {
 
   return (
     <div className="relative min-h-svh pb-12">
-      <div className="pointer-events-none sticky top-0 z-20 hidden h-[4.875rem] items-center justify-between gap-4 px-7 py-3 lg:flex">
-        <LiquidGlass
-          kind="toolbar"
-          renderKey={project.name}
-          className="pointer-events-auto h-12 min-w-56 rounded-[1.15rem] border border-white/80"
-          contentClassName="flex h-full items-center px-4"
-        >
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Projects</span>
-            <span className="text-muted-foreground/55">/</span>
-            <strong className="font-semibold text-foreground">
-              {project.name}
-            </strong>
-          </div>
-        </LiquidGlass>
-        <LiquidGlass
-          kind="toolbar"
-          renderKey={`actions-${project.name}`}
-          className="pointer-events-auto h-12 rounded-[1.15rem] border border-white/80"
-          contentClassName="flex h-full items-center gap-1 p-1"
-        >
-          <Button
-            variant="ghost"
-            size="lg"
-            className="rounded-xl bg-transparent text-foreground/80 hover:bg-card/30"
-            onClick={() => setDialog("settings")}
-          >
-            <Settings2 /> Project settings
-          </Button>
-          <Button
-            size="lg"
-            className="rounded-xl"
-            onClick={() => setDialog("project")}
-          >
-            <Plus /> New project
-          </Button>
-        </LiquidGlass>
-      </div>
+      <WorkspaceToolbar
+        section="Projects"
+        current={project.name}
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="rounded-xl bg-transparent text-foreground/80 hover:bg-card/30"
+              onClick={() => setDialog("settings")}
+            >
+              <Settings2 /> Project settings
+            </Button>
+            <Button
+              size="lg"
+              className="rounded-xl"
+              onClick={() => setDialog("project")}
+            >
+              <Plus /> New project
+            </Button>
+          </>
+        }
+      />
 
       <header className="border-b border-foreground/10 bg-transparent px-5 pt-8 pb-6 sm:px-7 lg:px-7 lg:pt-7">
         <p className="font-mono text-[0.62rem] font-bold tracking-[0.13em] text-primary uppercase">

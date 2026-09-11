@@ -11,7 +11,7 @@ The interface should feel calm enough for daily operational use. Liquid Glass is
 ## 1. Design principles
 
 1. **Information before effects.** A user should understand the page, state, owner, next action, and blockers before noticing the glass treatment.
-2. **Glass belongs to the UI layer.** Use it for navigation, floating toolbars, compact floating controls, inspectors, and the single approved opaque data-surface shell. Do not make normal content cards, forms, stage columns, table rows, or table cells liquid.
+2. **Glass belongs to the UI layer.** Use it for navigation, floating toolbars, compact floating controls, and inspectors. Keep content cards, forms, stages, and tables solid.
 3. **One continuous canvas.** The background scene spans behind the application. Do not add white fades, page-wide glass bars, or a colored slab behind page headers.
 4. **Warm, technical, restrained.** Prometheus orange is the primary accent. Warm paper neutrals are the default surfaces. Blue/purple neon gradients are outside the system.
 5. **Avoid glass-on-glass.** A glass element must not contain another independently refracting glass element.
@@ -107,12 +107,11 @@ This separation is non-negotiable: the glass bends the editorial canvas behind i
 
 ### Presets
 
-`LiquidGlass` supports five sanctioned material kinds:
+`LiquidGlass` supports four sanctioned material kinds:
 
 - `navigation` — persistent sidebar or navigation island;
 - `toolbar` — compact floating breadcrumb/action groups;
 - `control` — small temporary controls such as quick actions;
-- `data` — large, light, highly opaque data surfaces such as the shared table shell;
 - `overlay` — drawers, popups, dialogs, and toasts using the same warm hue with a more opaque tint and weaker refraction.
 
 Use the existing preset instead of passing one-off optical values from feature code. Changing a preset changes the design system and should be reviewed globally.
@@ -125,7 +124,6 @@ Use Liquid Glass for:
 - compact mobile navigation chrome;
 - floating breadcrumb or action islands;
 - small floating quick-action clusters;
-- one bounded data surface through the shared `data` preset;
 - drawers, popups, dialogs, and toasts through the shared `overlay` preset.
 
 Do **not** use Liquid Glass for:
@@ -141,7 +139,7 @@ Do **not** use Liquid Glass for:
 
 ### Performance
 
-Refraction maps are generated per glass instance. Keep the number of simultaneous instances small. Prefer one sidebar, up to two toolbar islands, one quick-action cluster, one data surface, and only the currently visible overlays. Never wrap a repeated list item in `LiquidGlass`.
+Refraction maps are generated per glass instance. Keep the number of simultaneous instances small. Prefer one sidebar, up to two toolbar islands, one quick-action cluster, and only the currently visible overlays. Never wrap a repeated list item in `LiquidGlass`.
 
 ## 6. Application shell
 
@@ -298,7 +296,7 @@ Use a normal Dialog instead when the user must complete a focused form before re
 
 ## 15. Tables
 
-Use `AppDataTable` for searchable, sortable, paginated business records. Its single outer shell may use the sanctioned opaque `data` glass preset; headers, rows, and cells remain readable content layers and must never become separate glass instances.
+Use `LedgerTable` for simple record lists and `AppDataTable` for searchable, sortable, paginated business records. Both use the solid warm-paper ledger material with faint row separators; tables must never use Liquid Glass or sit inside another Card.
 
 Feature code owns columns, filters, URL state, and row actions. The shared table owns the visual pattern.
 
@@ -346,7 +344,7 @@ Keep shapes technical rather than bubbly.
 - input/button: 8–10 px;
 - content card: 10–12 px;
 - stage/container: 12–16 px;
-- toolbar island: 16–20 px;
+- toolbar island: 16–20 px, except compact breadcrumb capsules which are fully rounded;
 - sidebar / inspector: 28–32 px;
 - pill/status: fully rounded.
 
@@ -440,6 +438,7 @@ Business rules and authorization do not belong in visual components.
 | Record status                        | `Badge` or feature status chip                   |
 | Discrete record/object               | `Card` or feature card                           |
 | Searchable business list             | `AppDataTable`                                   |
+| Simple record list                   | `LedgerTable`                                    |
 | Standard page heading                | `PageHeader`                                     |
 | No-data view                         | `EmptyState`                                     |
 | Blocking create/edit flow            | `Dialog`                                         |

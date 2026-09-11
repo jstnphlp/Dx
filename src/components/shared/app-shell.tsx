@@ -126,9 +126,8 @@ function NavigationGroup({
         blur={7}
         contrast={20}
         fill="var(--gooey-navigation)"
-        shadow="inset 0 1px 0 rgba(255,255,255,.82), 0 5px 16px rgba(63,45,36,.06)"
         aria-label={`${label} navigation`}
-        className="grid gap-1"
+        className="navigation-liquid grid gap-1"
         role="navigation"
       >
         {activeIndex >= 0 ? (
@@ -143,7 +142,7 @@ function NavigationGroup({
           >
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-xl bg-transparent"
+              className="glass-capsule pointer-events-none absolute inset-x-0 top-0 h-10 bg-transparent transition-transform duration-200 ease-out"
               style={{ transform: `translateY(${activeIndex * 44}px)` }}
             />
           </Liquid.Item>
@@ -166,7 +165,7 @@ function NavigationGroup({
               aria-current={active ? "page" : undefined}
               title={compact ? item.label : undefined}
               className={cn(
-                "group relative z-10 flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/65 transition-colors duration-150 hover:bg-card/30 hover:text-sidebar-foreground",
+                "group relative z-10 flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/65 transition-colors duration-150 hover:text-sidebar-foreground",
                 compact && "justify-center px-0",
                 active && "text-sidebar-foreground",
               )}
@@ -186,6 +185,122 @@ function NavigationGroup({
         })}
       </Liquid>
     </div>
+  );
+}
+
+function SidebarNavigation({ compact }: { compact: boolean }) {
+  const pathname = usePathname();
+  const [pendingNavigation, setPendingNavigation] = useState<{
+    from: string;
+    target: string;
+  } | null>(null);
+  const visualPathname =
+    pendingNavigation?.from === pathname ? pendingNavigation.target : pathname;
+  const isActive = (href: string) =>
+    visualPathname === href ||
+    (href !== "/dashboard" && visualPathname.startsWith(href));
+  const workspaceIndex = workspaceNavigation.findIndex((item) =>
+    isActive(item.href),
+  );
+  const personalIndex = personalNavigation.findIndex((item) =>
+    isActive(item.href),
+  );
+  const labelHeight = compact ? 0 : 20;
+  const sectionGap = 24;
+  const itemStep = 44;
+  const indicatorY =
+    workspaceIndex >= 0
+      ? labelHeight + workspaceIndex * itemStep
+      : personalIndex >= 0
+        ? labelHeight +
+          workspaceNavigation.length * itemStep +
+          sectionGap +
+          labelHeight +
+          personalIndex * itemStep
+        : null;
+
+  function renderItems(items: ReadonlyArray<NavigationItem>) {
+    return items.map((item) => {
+      const active = isActive(item.href);
+      const Icon = item.icon;
+
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          onNavigate={() =>
+            setPendingNavigation({ from: pathname, target: item.href })
+          }
+          aria-current={active ? "page" : undefined}
+          title={compact ? item.label : undefined}
+          className={cn(
+            "group relative z-10 flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/65 transition-colors duration-150 hover:text-sidebar-foreground",
+            compact && "justify-center px-0",
+            active && "text-sidebar-foreground",
+          )}
+        >
+          <Icon
+            aria-hidden="true"
+            className={cn(
+              "size-4 shrink-0 text-sidebar-foreground/48 transition-colors group-hover:text-primary",
+              active && "text-primary",
+            )}
+          />
+          <span className={compact ? "sr-only" : undefined}>{item.label}</span>
+        </Link>
+      );
+    });
+  }
+
+  return (
+    <Liquid
+      blur={7}
+      contrast={20}
+      fill="var(--gooey-navigation)"
+      aria-label="Sidebar navigation"
+      className="navigation-liquid relative"
+      role="navigation"
+    >
+      {indicatorY !== null ? (
+        <Liquid.Item
+          effect="move"
+          move={{
+            springiness: 0.82,
+            wobble: 0.08,
+            stretch: 0.14,
+            trail: 0.24,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="glass-capsule pointer-events-none absolute inset-x-0 top-0 h-10 bg-transparent transition-transform duration-200 ease-out"
+            style={{ transform: `translateY(${indicatorY}px)` }}
+          />
+        </Liquid.Item>
+      ) : null}
+
+      <p
+        className={cn(
+          "flex h-5 items-center px-3 font-mono text-[0.58rem] font-bold tracking-[0.14em] text-sidebar-foreground/45 uppercase",
+          compact && "sr-only",
+        )}
+      >
+        Workspace
+      </p>
+      <div className="grid gap-1">{renderItems(workspaceNavigation)}</div>
+
+      <p
+        className={cn(
+          "mt-6 flex h-5 items-center px-3 font-mono text-[0.58rem] font-bold tracking-[0.14em] text-sidebar-foreground/45 uppercase",
+          compact && "sr-only",
+        )}
+      >
+        Personal
+      </p>
+      <div className={cn("grid gap-1", compact && "mt-6")}>
+        {renderItems(personalNavigation)}
+      </div>
+    </Liquid>
   );
 }
 
@@ -319,7 +434,7 @@ export function AppShell({ user, children }: AppShellProps) {
         <aside className="sticky top-0 hidden h-svh min-w-0 self-start p-3 pr-2 lg:flex">
           <LiquidGlass
             kind="navigation"
-            className="h-full w-full overflow-visible! rounded-[1.9rem] border border-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,.93),0_16px_38px_rgba(55,39,31,.075)]"
+            className="navigation-glass h-full w-full overflow-visible! rounded-[1.9rem]"
             contentClassName={cn(
               "flex h-full flex-col py-4 transition-[padding] duration-200",
               sidebarCollapsed ? "px-2" : "px-3.5",
@@ -351,17 +466,8 @@ export function AppShell({ user, children }: AppShellProps) {
               </button>
             </div>
 
-            <div className="flex-1 space-y-6 overflow-y-auto pt-5">
-              <NavigationGroup
-                label="Workspace"
-                items={workspaceNavigation}
-                compact={sidebarCollapsed}
-              />
-              <NavigationGroup
-                label="Personal"
-                items={personalNavigation}
-                compact={sidebarCollapsed}
-              />
+            <div className="flex-1 overflow-y-auto pt-5">
+              <SidebarNavigation compact={sidebarCollapsed} />
             </div>
 
             <div className="border-t border-foreground/10 pt-3">
